@@ -61,24 +61,30 @@ async function fetchFromGemini(ticker: string): Promise<any> {
   return { ...data, source: "Gemini AI (Search)" };
 }
 
-export async function fetchStockData(ticker: string): Promise<StockMetrics> {
-  let data: any = null;
+export async function fetchStockData(ticker: string, apiKey?: string): Promise<StockMetrics> {
+  let data: any;
 
   try {
-    const response = await fetch(`/api/stock/${ticker}`);
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers['X-FMP-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`/api/stock/${ticker}`, { headers });
     if (response.ok) {
       data = await response.json();
     } else {
-      console.warn("Backend FMP fetch failed or not configured, falling back to Gemini");
+      console.warn("FMP fetch failed, falling back to Gemini...");
       data = await fetchFromGemini(ticker);
     }
   } catch (error) {
-    console.error("Error fetching from backend, falling back to Gemini:", error);
-    data = await fetchFromGemini(ticker);
-  }
-
-  if (!data) {
-    throw new Error("Failed to fetch stock data from all sources");
+    console.error("Error fetching from FMP, falling back to Gemini:", error);
+    try {
+      data = await fetchFromGemini(ticker);
+    } catch (geminiError) {
+      console.error("Gemini fallback also failed:", geminiError);
+      throw new Error("Both FMP and Gemini fallback failed to retrieve data. Please check your connection.");
+    }
   }
 
   // Calculate score
