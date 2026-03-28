@@ -17,51 +17,19 @@ export interface StockMetrics {
 }
 
 export const SP500_AVERAGES = {
-  roce: 15,
-  grossMargin: 40,
-  operatingMargin: 15,
-  cashConversion: 90,
-  interestCover: 10,
+  roce: 17,
+  grossMargin: 45,
+  operatingMargin: 18,
+  cashConversion: 89,
+  interestCover: 9,
 };
 
 export async function fetchSP500Benchmarks(): Promise<typeof SP500_AVERAGES> {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Find the current aggregate financial quality metrics for the S&P 500 index (average or median for the index as a whole). 
-      I need:
-      1. ROCE (Return on Capital Employed) %
-      2. Gross Margin %
-      3. Operating Margin %
-      4. Cash Conversion (CFO / Net Income) %
-      5. Interest Cover (EBIT / Interest Expense) ratio
-      
-      Provide the most recent data available (TTM or latest annual aggregate).`,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            roce: { type: Type.NUMBER },
-            grossMargin: { type: Type.NUMBER },
-            operatingMargin: { type: Type.NUMBER },
-            cashConversion: { type: Type.NUMBER },
-            interestCover: { type: Type.NUMBER },
-          },
-          required: ["roce", "grossMargin", "operatingMargin", "cashConversion", "interestCover"],
-        },
-      },
-    });
-
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Failed to fetch S&P 500 benchmarks, using defaults:", error);
-    return SP500_AVERAGES;
-  }
+  // Hardcoded to Fundsmith Equity figures as requested
+  return SP500_AVERAGES;
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 async function fetchFromGemini(ticker: string): Promise<any> {
   console.log(`Using Gemini fallback for ${ticker}...`);

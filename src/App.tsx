@@ -25,7 +25,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fmpApiKey, setFmpApiKey] = useState(() => localStorage.getItem('fmp_api_key') || '');
   const [benchmarks, setBenchmarks] = useState(SP500_AVERAGES);
-  const [isBenchmarksLoading, setIsBenchmarksLoading] = useState(true);
   const [refreshingTickers, setRefreshingTickers] = useState<Set<string>>(new Set());
   const [watchlist, setWatchlist] = useState<StockMetrics[]>(() => {
     const saved = localStorage.getItem('quality_watchlist');
@@ -54,9 +53,7 @@ export default function App() {
         const liveBenchmarks = await fetchSP500Benchmarks();
         setBenchmarks(liveBenchmarks);
       } catch (err) {
-        console.error("Failed to load live benchmarks:", err);
-      } finally {
-        setIsBenchmarksLoading(false);
+        console.error("Failed to load benchmarks:", err);
       }
     };
     loadBenchmarks();
@@ -442,18 +439,8 @@ export default function App() {
                     <Target className="w-5 h-5 text-emerald-500" />
                     <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">S&P 500 Quality Benchmarks</h2>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {isBenchmarksLoading ? (
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-white/20 uppercase">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Fetching Live Data...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-500/50 uppercase">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Live Benchmarks Active
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-white/20 uppercase">
+                    Source: Fundsmith Equity
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -477,6 +464,9 @@ export default function App() {
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Int. Cover</p>
                     <p className="text-xl font-mono font-bold text-white">{benchmarks.interestCover}x</p>
                   </div>
+                </div>
+                <div className="text-[10px] font-mono text-white/20 italic text-right">
+                  * Excludes financial stocks. Interest Cover is median.
                 </div>
               </section>
 
