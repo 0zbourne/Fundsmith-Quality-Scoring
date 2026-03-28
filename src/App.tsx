@@ -59,11 +59,15 @@ export default function App() {
   ];
 
   const loadingMessages = [
-    "Connecting to Financial Modeling Prep...",
-    "Retrieving TTM ratios...",
-    "Analyzing capital efficiency...",
-    "Calculating quality score...",
-    "Finalizing report..."
+    "Connecting to financial data providers...",
+    "Retrieving TTM financial ratios...",
+    "Analyzing return on capital employed...",
+    "Cross-referencing industry benchmarks...",
+    "Evaluating historical capital allocation...",
+    "Checking interest coverage ratios...",
+    "Assessing free cash flow generation...",
+    "Calculating proprietary quality score...",
+    "Finalizing research report..."
   ];
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -81,7 +85,7 @@ export default function App() {
     const interval = setInterval(() => {
       messageIndex = (messageIndex + 1) % loadingMessages.length;
       setLoadingMessage(loadingMessages[messageIndex]);
-    }, 1500);
+    }, 3500);
 
     try {
       if (isDemoMode) {
