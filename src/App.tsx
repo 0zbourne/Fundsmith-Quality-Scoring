@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, TrendingUp, Info, AlertCircle, CheckCircle2, XCircle, Loader2, BarChart3, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { fetchStockData, StockMetrics, SP500_AVERAGES } from './services/geminiService';
+import { fetchStockData, StockMetrics, SP500_AVERAGES } from './services/stockService';
 
 export default function App() {
   const [ticker, setTicker] = useState('');
@@ -232,7 +232,7 @@ export default function App() {
                     <div className="pt-4 border-t border-white/10 flex items-start gap-3">
                       <Info className="w-5 h-5 text-white/30 shrink-0 mt-0.5" />
                       <p className="text-xs text-white/40 italic">
-                        Note: S&P 500 averages are used as a general quality benchmark. Industry-specific benchmarks may vary significantly. Data is retrieved via AI-driven research and should be verified with official filings.
+                        Note: S&P 500 averages are used as a general quality benchmark. Data source: <span className="text-emerald-500/60 font-mono">{data.source}</span>.
                       </p>
                     </div>
                   </div>

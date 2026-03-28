@@ -1,7 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
 export interface StockMetrics {
   ticker: string;
   name: string;
@@ -12,6 +10,7 @@ export interface StockMetrics {
   interestCover: number;
   score: number;
   description: string;
+  source: string;
 }
 
 export const SP500_AVERAGES = {
@@ -22,7 +21,10 @@ export const SP500_AVERAGES = {
   interestCover: 10,
 };
 
-export async function fetchStockData(ticker: string): Promise<StockMetrics> {
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
+async function fetchFromGemini(ticker: string): Promise<any> {
+  console.log(`Using Gemini fallback for ${ticker}...`);
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Find the most recent annual financial metrics for the stock with ticker symbol: ${ticker}. 
@@ -43,11 +45,11 @@ export async function fetchStockData(ticker: string): Promise<StockMetrics> {
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING },
-          roce: { type: Type.NUMBER, description: "ROCE as a percentage (e.g. 15.5)" },
-          grossMargin: { type: Type.NUMBER, description: "Gross Margin as a percentage (e.g. 40.2)" },
-          operatingMargin: { type: Type.NUMBER, description: "Operating Margin as a percentage (e.g. 15.1)" },
-          cashConversion: { type: Type.NUMBER, description: "Cash Conversion as a percentage (e.g. 95.0)" },
-          interestCover: { type: Type.NUMBER, description: "Interest Cover as a ratio (e.g. 12.5)" },
+          roce: { type: Type.NUMBER },
+          grossMargin: { type: Type.NUMBER },
+          operatingMargin: { type: Type.NUMBER },
+          cashConversion: { type: Type.NUMBER },
+          interestCover: { type: Type.NUMBER },
           description: { type: Type.STRING },
         },
         required: ["name", "roce", "grossMargin", "operatingMargin", "cashConversion", "interestCover", "description"],
@@ -56,6 +58,28 @@ export async function fetchStockData(ticker: string): Promise<StockMetrics> {
   });
 
   const data = JSON.parse(response.text);
+  return { ...data, source: "Gemini AI (Search)" };
+}
+
+export async function fetchStockData(ticker: string): Promise<StockMetrics> {
+  let data: any = null;
+
+  try {
+    const response = await fetch(`/api/stock/${ticker}`);
+    if (response.ok) {
+      data = await response.json();
+    } else {
+      console.warn("Backend FMP fetch failed or not configured, falling back to Gemini");
+      data = await fetchFromGemini(ticker);
+    }
+  } catch (error) {
+    console.error("Error fetching from backend, falling back to Gemini:", error);
+    data = await fetchFromGemini(ticker);
+  }
+
+  if (!data) {
+    throw new Error("Failed to fetch stock data from all sources");
+  }
 
   // Calculate score
   let score = 0;
