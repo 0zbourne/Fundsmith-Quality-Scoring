@@ -348,9 +348,9 @@ export default function App() {
 
       {/* Header */}
       <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between gap-8 relative">
           <div 
-            className="flex items-center gap-2 cursor-pointer group"
+            className="flex items-center gap-2 cursor-pointer group shrink-0"
             onClick={() => {
               setData(null);
               setError(null);
@@ -364,60 +364,66 @@ export default function App() {
             <span className="font-mono font-bold tracking-tighter text-xl">FUNDSMITH<span className="text-emerald-500">SCORER</span></span>
           </div>
 
-          <div className="flex items-center gap-4">
-            {isDemoMode && (
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">Demo Mode Active</span>
-                <button 
-                  onClick={() => setIsDemoMode(false)}
-                  className="ml-2 text-[10px] text-white/30 hover:text-white transition-colors"
-                >
-                  Exit
-                </button>
+          <div className="flex items-center gap-4 flex-1 justify-end">
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-emerald-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Ticker (e.g. AAPL, GAW)"
+                  value={ticker}
+                  onChange={(e) => setTicker(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 w-40 lg:w-48 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-mono text-sm"
+                />
               </div>
-            )}
-            
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 rounded-full hover:bg-white/5 transition-colors text-white/50 hover:text-white"
-              title="API Settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+              <select
+                value={exchange}
+                onChange={(e) => setExchange(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-mono text-sm text-white/70 cursor-pointer"
+              >
+                {exchanges.map((ex) => (
+                  <option key={ex.value} value={ex.value} className="bg-[#0a0a0a]">
+                    {ex.label}
+                  </option>
+                ))}
+              </select>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-mono font-bold py-2 px-6 rounded-full transition-all text-sm shrink-0 flex items-center gap-2"
+              >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                ANALYZE
+              </button>
+            </form>
+
+            <div className="h-6 w-px bg-white/10 mx-2 hidden md:block" />
+
+            <div className="flex items-center gap-3">
+              {isDemoMode && (
+                <div className="hidden sm:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest">Demo</span>
+                  <button 
+                    onClick={() => setIsDemoMode(false)}
+                    className="ml-1 text-[10px] text-white/30 hover:text-white transition-colors"
+                  >
+                    <XCircle className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 rounded-full hover:bg-white/5 transition-colors text-white/50 hover:text-white"
+                title="API Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
           </div>
           
-          <form onSubmit={handleSearch} className="flex items-center gap-2">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-emerald-500 transition-colors" />
-              <input
-                type="text"
-                placeholder="Ticker (e.g. AAPL, GAW)"
-                value={ticker}
-                onChange={(e) => setTicker(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 w-48 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-mono text-sm"
-              />
-            </div>
-            <select
-              value={exchange}
-              onChange={(e) => setExchange(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-mono text-sm text-white/70 cursor-pointer"
-            >
-              {exchanges.map((ex) => (
-                <option key={ex.value} value={ex.value} className="bg-[#0a0a0a]">
-                  {ex.label}
-                </option>
-              ))}
-            </select>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-mono font-bold py-2 px-6 rounded-full transition-all text-sm shrink-0"
-            >
-              ANALYZE
-            </button>
-          </form>
-          <div className="absolute -bottom-6 right-0 text-[10px] text-white/20 font-mono italic">
+          <div className="absolute -bottom-6 right-6 text-[10px] text-white/20 font-mono italic">
             Tip: You can search by ticker (GAW.L) or company name (Games Workshop)
           </div>
         </div>
