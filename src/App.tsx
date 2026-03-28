@@ -28,7 +28,19 @@ export default function App() {
   const [isBenchmarksLoading, setIsBenchmarksLoading] = useState(true);
   const [watchlist, setWatchlist] = useState<StockMetrics[]>(() => {
     const saved = localStorage.getItem('quality_watchlist');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.map((item: any) => ({
+        ...item,
+        fcfYield: item.fcfYield ?? 0,
+        fcfGrowthRate: item.fcfGrowthRate ?? 0,
+        historicalFcfYield: item.historicalFcfYield ?? 0,
+      }));
+    } catch (e) {
+      console.error("Failed to parse watchlist", e);
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -150,6 +162,9 @@ export default function App() {
           operatingMargin: 31.5,
           cashConversion: 105.2,
           interestCover: 45.8,
+          fcfYield: 4.2,
+          fcfGrowthRate: 12.5,
+          historicalFcfYield: 3.8,
           score: 4.8,
           source: "Demo Mode (Mock Data)"
         };
@@ -752,6 +767,80 @@ export default function App() {
                   suffix="x"
                   isRatio
                 />
+              </div>
+
+              {/* Valuation Section */}
+              <div className="mt-12 space-y-6">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-500" />
+                  <h3 className="font-mono font-bold uppercase tracking-wider">Valuation & FCF Analysis</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">Current FCF Yield</span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                        data.fcfYield > data.historicalFcfYield ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500"
+                      )}>
+                        {data.fcfYield > data.historicalFcfYield ? "Above Avg" : "Below Avg"}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-mono font-bold text-white">{data.fcfYield.toFixed(1)}%</span>
+                      <span className="text-xs text-white/30">Yield</span>
+                    </div>
+                    <p className="text-xs text-white/40 leading-relaxed">
+                      Current free cash flow yield relative to market price. Higher is generally better for valuation.
+                    </p>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">FCF Growth (10Y)</span>
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-mono font-bold text-white">{data.fcfGrowthRate.toFixed(1)}%</span>
+                      <span className="text-xs text-white/30">CAGR</span>
+                    </div>
+                    <p className="text-xs text-white/40 leading-relaxed">
+                      Historical compound annual growth rate of free cash flow over the last decade.
+                    </p>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">Hist. Avg Yield</span>
+                      <BarChart3 className="w-4 h-4 text-white/30" />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-mono font-bold text-white">{data.historicalFcfYield.toFixed(1)}%</span>
+                      <span className="text-xs text-white/30">Average</span>
+                    </div>
+                    <p className="text-xs text-white/40 leading-relaxed">
+                      The 10-year average FCF yield. Useful for mean-reversion valuation analysis.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
+                      <Target className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm mb-1">Valuation Verdict</h4>
+                      <p className="text-sm text-white/60 leading-relaxed">
+                        {data.fcfYield > data.historicalFcfYield 
+                          ? `The current yield of ${data.fcfYield.toFixed(1)}% is higher than the historical average of ${data.historicalFcfYield.toFixed(1)}%, suggesting the stock might be undervalued relative to its own history.`
+                          : `The current yield of ${data.fcfYield.toFixed(1)}% is lower than the historical average of ${data.historicalFcfYield.toFixed(1)}%, suggesting the stock might be trading at a premium compared to its historical norms.`}
+                        {data.fcfGrowthRate > 10 && " Combined with double-digit FCF growth, this indicates a potentially attractive compounder."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Analysis Section */}

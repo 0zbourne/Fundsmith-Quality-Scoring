@@ -8,6 +8,9 @@ export interface StockMetrics {
   operatingMargin: number;
   cashConversion: number;
   interestCover: number;
+  fcfYield: number;
+  fcfGrowthRate: number;
+  historicalFcfYield: number;
   score: number;
   description: string;
   source: string;
@@ -72,7 +75,10 @@ async function fetchFromGemini(ticker: string): Promise<any> {
     4. Operating Margin as a percentage
     5. Cash Conversion (Cash Flow from Operations / Net Income) as a percentage
     6. Interest Cover (EBIT / Interest Expense) as a ratio
-    7. A very brief (1 sentence) description of the company's business.
+    7. Current Free Cash Flow (FCF) Yield as a percentage
+    8. Historical FCF Growth Rate (10-year CAGR if available, otherwise 5-year) as a percentage
+    9. Historical Average FCF Yield (10-year average if available) as a percentage
+    10. A very brief (1 sentence) description of the company's business.
 
     Use Google Search to find the most accurate and recent data.`,
     config: {
@@ -87,9 +93,12 @@ async function fetchFromGemini(ticker: string): Promise<any> {
           operatingMargin: { type: Type.NUMBER },
           cashConversion: { type: Type.NUMBER },
           interestCover: { type: Type.NUMBER },
+          fcfYield: { type: Type.NUMBER },
+          fcfGrowthRate: { type: Type.NUMBER },
+          historicalFcfYield: { type: Type.NUMBER },
           description: { type: Type.STRING },
         },
-        required: ["name", "roce", "grossMargin", "operatingMargin", "cashConversion", "interestCover", "description"],
+        required: ["name", "roce", "grossMargin", "operatingMargin", "cashConversion", "interestCover", "fcfYield", "fcfGrowthRate", "historicalFcfYield", "description"],
       },
     },
   });
