@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, Info, AlertCircle, CheckCircle2, XCircle, Loader2, BarChart3, Target, Activity, Settings, Save, Trash2 } from 'lucide-react';
+import { Search, TrendingUp, Info, AlertCircle, CheckCircle2, XCircle, Loader2, BarChart3, Target, Activity, Settings, Save, Trash2, RefreshCcw, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { fetchStockData, StockMetrics, SP500_AVERAGES } from './services/stockService';
@@ -17,8 +17,35 @@ export default function App() {
   const [testResult, setTestResult] = useState<{ status: 'ok' | 'error', message: string } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fmpApiKey, setFmpApiKey] = useState(() => localStorage.getItem('fmp_api_key') || '');
+  const [watchlist, setWatchlist] = useState<StockMetrics[]>(() => {
+    const saved = localStorage.getItem('quality_watchlist');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('quality_watchlist', JSON.stringify(watchlist));
+  }, [watchlist]);
 
   const isApiKeyError = error?.includes("403") || debugInfo?.includes("403") || error?.includes("configured");
+
+  const addToWatchlist = (stock: StockMetrics) => {
+    if (!watchlist.find(s => s.ticker === stock.ticker)) {
+      setWatchlist(prev => [stock, ...prev]);
+    }
+  };
+
+  const removeFromWatchlist = (ticker: string) => {
+    setWatchlist(prev => prev.filter(s => s.ticker !== ticker));
+  };
+
+  const refreshWatchlistItem = async (ticker: string) => {
+    try {
+      const result = await fetchStockData(ticker, fmpApiKey.trim());
+      setWatchlist(prev => prev.map(s => s.ticker === ticker ? result : s));
+    } catch (err) {
+      console.error(`Failed to refresh ${ticker}:`, err);
+    }
+  };
 
   const saveApiKey = () => {
     localStorage.setItem('fmp_api_key', fmpApiKey.trim());
@@ -352,15 +379,122 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex flex-col items-center justify-center py-32 text-center"
+              className="space-y-12"
             >
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6">
-                <BarChart3 className="w-8 h-8 text-white/20" />
-              </div>
-              <h1 className="text-3xl font-bold mb-4 tracking-tight">Investment Research Tool</h1>
-              <p className="text-white/50 max-w-md">
-                Search for any ticker symbol to analyze its fundamental quality metrics against S&P 500 benchmarks.
-              </p>
+              {/* S&P 500 Benchmarks */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Target className="w-5 h-5 text-emerald-500" />
+                  <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">S&P 500 Quality Benchmarks</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/30 uppercase mb-1">ROCE</p>
+                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.roce}%</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Gross Margin</p>
+                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.grossMargin}%</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Op. Margin</p>
+                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.operatingMargin}%</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Cash Conv.</p>
+                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.cashConversion}%</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Int. Cover</p>
+                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.interestCover}x</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Watchlist */}
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="w-5 h-5 text-emerald-500" />
+                    <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">Quality Watchlist</h2>
+                  </div>
+                  <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">{watchlist.length} Companies</span>
+                </div>
+
+                {watchlist.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {watchlist.map((stock) => (
+                      <motion.div 
+                        key={stock.ticker}
+                        layout
+                        className="group bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between hover:bg-white/[0.08] transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500">
+                            {stock.ticker.replace('.L', '').replace('.DE', '')}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm">{stock.name}</h3>
+                            <div className="flex gap-3 mt-1">
+                              <span className="text-[10px] font-mono text-white/30 uppercase">ROCE: {stock.roce.toFixed(1)}%</span>
+                              <span className="text-[10px] font-mono text-white/30 uppercase">Score: {stock.score.toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <div 
+                                key={i} 
+                                className={cn(
+                                  "w-1 h-4 rounded-full",
+                                  i <= stock.score ? "bg-emerald-500" : "bg-white/10"
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => refreshWatchlistItem(stock.ticker)}
+                              className="p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-emerald-500 transition-colors"
+                              title="Refresh Data"
+                            >
+                              <RefreshCcw className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => removeFromWatchlist(stock.ticker)}
+                              className="p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-rose-500 transition-colors"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setTicker(stock.ticker.replace('.L', '').replace('.DE', ''));
+                                // Trigger search manually
+                                handleSearch({ preventDefault: () => {} } as any);
+                              }}
+                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black transition-all"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-20 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                      <BarChart3 className="w-6 h-6 text-white/10" />
+                    </div>
+                    <p className="text-sm text-white/30 max-w-xs">
+                      Your watchlist is empty. Analyze some companies and add them here to track their quality metrics.
+                    </p>
+                  </div>
+                )}
+              </section>
             </motion.div>
           )}
 
@@ -469,6 +603,19 @@ export default function App() {
                       {data.ticker}
                     </span>
                     <h2 className="text-4xl font-bold tracking-tight">{data.name}</h2>
+                    <button 
+                      onClick={() => addToWatchlist(data)}
+                      disabled={watchlist.some(s => s.ticker === data.ticker)}
+                      className={cn(
+                        "ml-4 p-2 rounded-full border transition-all",
+                        watchlist.some(s => s.ticker === data.ticker)
+                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-500 opacity-50 cursor-not-allowed"
+                          : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10"
+                      )}
+                      title={watchlist.some(s => s.ticker === data.ticker) ? "In Watchlist" : "Add to Watchlist"}
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
                   </div>
                   <p className="text-white/50 max-w-2xl italic leading-relaxed">
                     "{data.description}"
