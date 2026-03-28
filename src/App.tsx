@@ -431,10 +431,6 @@ export default function App() {
               </button>
             </div>
           </div>
-          
-          <div className="absolute -bottom-6 right-6 text-[10px] text-white/20 font-mono italic">
-            Tip: You can search by ticker (GAW.L) or company name (Games Workshop)
-          </div>
         </div>
       </header>
 
