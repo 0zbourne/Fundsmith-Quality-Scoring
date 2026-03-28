@@ -4,6 +4,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { fetchStockData, StockMetrics, SP500_AVERAGES } from './services/stockService';
 
+const cleanCompanyName = (name: string) => {
+  if (!name) return "";
+  return name
+    .replace(/[,.]?\s+(Inc|Incorporated|Group\s+PLC|Group\s+Plc|PLC|Plc|Corp|Corporation|Ltd|Limited|Co|Company|S\.A\.|AG|NV|SE|ADR|Holdings?|Class\s+[A-Z]|Group)\.?$/gi, '')
+    .trim();
+};
+
 export default function App() {
   const [ticker, setTicker] = useState('');
   const [exchange, setExchange] = useState('');
@@ -442,7 +449,7 @@ export default function App() {
                             {stock.ticker.split('.')[0]}
                           </div>
                           <div className="min-w-0">
-                            <h3 className="font-bold text-sm truncate">{stock.name}</h3>
+                            <h3 className="font-bold text-sm truncate">{cleanCompanyName(stock.name)}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] font-mono font-bold text-emerald-500/70">{stock.ticker}</span>
                               <span className="text-[10px] opacity-10">|</span>
@@ -644,7 +651,7 @@ export default function App() {
                     <span className="bg-emerald-500 text-black font-mono font-bold px-2 py-0.5 rounded text-sm">
                       {data.ticker}
                     </span>
-                    <h2 className="text-4xl font-bold tracking-tight">{data.name}</h2>
+                    <h2 className="text-4xl font-bold tracking-tight">{cleanCompanyName(data.name)}</h2>
                     <button 
                       onClick={() => addToWatchlist(data)}
                       disabled={watchlist.some(s => s.ticker === data.ticker)}
