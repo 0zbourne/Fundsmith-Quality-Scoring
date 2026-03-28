@@ -306,11 +306,19 @@ export default function App() {
       {/* Header */}
       <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center">
+          <div 
+            className="flex items-center gap-2 cursor-pointer group"
+            onClick={() => {
+              setData(null);
+              setError(null);
+              setTicker('');
+              setLoading(false);
+            }}
+          >
+            <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center group-hover:scale-110 transition-transform">
               <TrendingUp className="text-black w-5 h-5" />
             </div>
-            <span className="font-mono font-bold tracking-tighter text-xl">EQUITY<span className="text-emerald-500">INSIGHT</span></span>
+            <span className="font-mono font-bold tracking-tighter text-xl">FUNDSMITH<span className="text-emerald-500">SCORER</span></span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -427,34 +435,68 @@ export default function App() {
                       <motion.div 
                         key={stock.ticker}
                         layout
-                        className="group bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between hover:bg-white/[0.08] transition-all"
+                        className="group bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.08] transition-all gap-4"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500">
-                            {stock.ticker.replace('.L', '').replace('.DE', '')}
+                        <div className="flex items-center gap-4 min-w-[200px]">
+                          <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500 shrink-0">
+                            {stock.ticker.split('.')[0]}
                           </div>
-                          <div>
-                            <h3 className="font-bold text-sm">{stock.name}</h3>
-                            <div className="flex gap-3 mt-1">
-                              <span className="text-[10px] font-mono text-white/30 uppercase">ROCE: {stock.roce.toFixed(1)}%</span>
-                              <span className="text-[10px] font-mono text-white/30 uppercase">Score: {stock.score.toFixed(1)}</span>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-sm truncate">{stock.name}</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-mono font-bold text-emerald-500/70">{stock.ticker}</span>
+                              <span className="text-[10px] opacity-10">|</span>
+                              <span className="text-[10px] font-mono text-white/40 uppercase tracking-tighter">Score: {stock.score.toFixed(1)}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-8 gap-y-2 flex-1 px-2">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
+                            <span className={cn("text-xs font-mono font-bold", stock.roce > SP500_AVERAGES.roce ? "text-emerald-400" : "text-rose-400")}>
+                              {stock.roce.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
+                            <span className={cn("text-xs font-mono font-bold", stock.grossMargin > SP500_AVERAGES.grossMargin ? "text-emerald-400" : "text-rose-400")}>
+                              {stock.grossMargin.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Op.</span>
+                            <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > SP500_AVERAGES.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
+                              {stock.operatingMargin.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Cash</span>
+                            <span className={cn("text-xs font-mono font-bold", stock.cashConversion > SP500_AVERAGES.cashConversion ? "text-emerald-400" : "text-rose-400")}>
+                              {stock.cashConversion.toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Int.</span>
+                            <span className={cn("text-xs font-mono font-bold", stock.interestCover > SP500_AVERAGES.interestCover ? "text-emerald-400" : "text-rose-400")}>
+                              {stock.interestCover.toFixed(1)}x
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-6 pt-4 md:pt-0 border-t md:border-t-0 border-white/5">
                           <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map((i) => (
                               <div 
                                 key={i} 
                                 className={cn(
-                                  "w-1 h-4 rounded-full",
+                                  "w-1 h-5 rounded-full",
                                   i <= stock.score ? "bg-emerald-500" : "bg-white/10"
                                 )}
                               />
                             ))}
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1">
                             <button 
                               onClick={() => refreshWatchlistItem(stock.ticker)}
                               className="p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-emerald-500 transition-colors"
@@ -471,11 +513,11 @@ export default function App() {
                             </button>
                             <button 
                               onClick={() => {
-                                setTicker(stock.ticker.replace('.L', '').replace('.DE', ''));
+                                setTicker(stock.ticker.split('.')[0]);
                                 // Trigger search manually
                                 handleSearch({ preventDefault: () => {} } as any);
                               }}
-                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black transition-all"
+                              className="ml-2 p-2 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black transition-all"
                             >
                               <ChevronRight className="w-4 h-4" />
                             </button>
@@ -719,7 +761,7 @@ export default function App() {
       {/* Footer */}
       <footer className="mt-auto py-12 border-t border-white/10 text-center space-y-4">
         <div className="text-white/20 font-mono text-[10px] uppercase tracking-[0.3em]">
-          &copy; 2026 EquityInsight Research Tool • Personal Research MVP
+          &copy; 2026 Fundsmith Quality Scorer • Personal Research MVP
         </div>
         <div className="flex flex-col items-center gap-2">
           <button 
