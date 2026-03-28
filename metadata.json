@@ -1,0 +1,5 @@
+{
+  "name": "EquityInsight Research Tool",
+  "description": "An investment research tool for analyzing stock quality metrics and scoring them against S&P 500 benchmarks.",
+  "requestFramePermissions": []
+}
