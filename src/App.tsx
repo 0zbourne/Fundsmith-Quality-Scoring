@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, TrendingUp, Info, AlertCircle, CheckCircle2, XCircle, Loader2, BarChart3, Target, Activity, Settings, Save, Trash2, RefreshCcw, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { fetchStockData, StockMetrics, SP500_AVERAGES } from './services/stockService';
+import { fetchStockData, StockMetrics, SP500_AVERAGES, fetchSP500Benchmarks } from './services/stockService';
 
 const cleanCompanyName = (name: string) => {
   if (!name) return "";
@@ -24,6 +24,8 @@ export default function App() {
   const [testResult, setTestResult] = useState<{ status: 'ok' | 'error', message: string } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fmpApiKey, setFmpApiKey] = useState(() => localStorage.getItem('fmp_api_key') || '');
+  const [benchmarks, setBenchmarks] = useState(SP500_AVERAGES);
+  const [isBenchmarksLoading, setIsBenchmarksLoading] = useState(true);
   const [watchlist, setWatchlist] = useState<StockMetrics[]>(() => {
     const saved = localStorage.getItem('quality_watchlist');
     return saved ? JSON.parse(saved) : [];
@@ -32,6 +34,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('quality_watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
+
+  useEffect(() => {
+    const loadBenchmarks = async () => {
+      try {
+        const liveBenchmarks = await fetchSP500Benchmarks();
+        setBenchmarks(liveBenchmarks);
+      } catch (err) {
+        console.error("Failed to load live benchmarks:", err);
+      } finally {
+        setIsBenchmarksLoading(false);
+      }
+    };
+    loadBenchmarks();
+  }, []);
 
   const isApiKeyError = error?.includes("403") || debugInfo?.includes("403") || error?.includes("configured");
 
@@ -47,7 +63,7 @@ export default function App() {
 
   const refreshWatchlistItem = async (ticker: string) => {
     try {
-      const result = await fetchStockData(ticker, fmpApiKey.trim());
+      const result = await fetchStockData(ticker, fmpApiKey.trim(), benchmarks);
       setWatchlist(prev => prev.map(s => s.ticker === ticker ? result : s));
     } catch (err) {
       console.error(`Failed to refresh ${ticker}:`, err);
@@ -139,7 +155,7 @@ export default function App() {
         };
         setData(demoData);
       } else {
-        const result = await fetchStockData(fullTicker, fmpApiKey.trim());
+        const result = await fetchStockData(fullTicker, fmpApiKey.trim(), benchmarks);
         setData(result);
       }
     } catch (err: any) {
@@ -398,30 +414,45 @@ export default function App() {
             >
               {/* S&P 500 Benchmarks */}
               <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <Target className="w-5 h-5 text-emerald-500" />
-                  <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">S&P 500 Quality Benchmarks</h2>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Target className="w-5 h-5 text-emerald-500" />
+                    <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">S&P 500 Quality Benchmarks</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isBenchmarksLoading ? (
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-white/20 uppercase">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Fetching Live Data...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-500/50 uppercase">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Live Benchmarks Active
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">ROCE</p>
-                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.roce}%</p>
+                    <p className="text-xl font-mono font-bold text-white">{benchmarks.roce}%</p>
                   </div>
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Gross Margin</p>
-                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.grossMargin}%</p>
+                    <p className="text-xl font-mono font-bold text-white">{benchmarks.grossMargin}%</p>
                   </div>
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Op. Margin</p>
-                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.operatingMargin}%</p>
+                    <p className="text-xl font-mono font-bold text-white">{benchmarks.operatingMargin}%</p>
                   </div>
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Cash Conv.</p>
-                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.cashConversion}%</p>
+                    <p className="text-xl font-mono font-bold text-white">{benchmarks.cashConversion}%</p>
                   </div>
                   <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
                     <p className="text-[10px] font-mono text-white/30 uppercase mb-1">Int. Cover</p>
-                    <p className="text-xl font-mono font-bold text-white">{SP500_AVERAGES.interestCover}x</p>
+                    <p className="text-xl font-mono font-bold text-white">{benchmarks.interestCover}x</p>
                   </div>
                 </div>
               </section>
@@ -461,31 +492,31 @@ export default function App() {
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-8 gap-y-2 flex-1 px-2">
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.roce > SP500_AVERAGES.roce ? "text-emerald-400" : "text-rose-400")}>
+                            <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
                               {stock.roce.toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.grossMargin > SP500_AVERAGES.grossMargin ? "text-emerald-400" : "text-rose-400")}>
+                            <span className={cn("text-xs font-mono font-bold", stock.grossMargin > benchmarks.grossMargin ? "text-emerald-400" : "text-rose-400")}>
                               {stock.grossMargin.toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Op.</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > SP500_AVERAGES.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
+                            <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > benchmarks.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
                               {stock.operatingMargin.toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Cash</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.cashConversion > SP500_AVERAGES.cashConversion ? "text-emerald-400" : "text-rose-400")}>
+                            <span className={cn("text-xs font-mono font-bold", stock.cashConversion > benchmarks.cashConversion ? "text-emerald-400" : "text-rose-400")}>
                               {stock.cashConversion.toFixed(0)}%
                             </span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Int.</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.interestCover > SP500_AVERAGES.interestCover ? "text-emerald-400" : "text-rose-400")}>
+                            <span className={cn("text-xs font-mono font-bold", stock.interestCover > benchmarks.interestCover ? "text-emerald-400" : "text-rose-400")}>
                               {stock.interestCover.toFixed(1)}x
                             </span>
                           </div>
@@ -697,27 +728,27 @@ export default function App() {
                 <MetricCard 
                   label="ROCE" 
                   value={data.roce} 
-                  benchmark={SP500_AVERAGES.roce} 
+                  benchmark={benchmarks.roce} 
                 />
                 <MetricCard 
                   label="Gross Margin" 
                   value={data.grossMargin} 
-                  benchmark={SP500_AVERAGES.grossMargin} 
+                  benchmark={benchmarks.grossMargin} 
                 />
                 <MetricCard 
                   label="Operating Margin" 
                   value={data.operatingMargin} 
-                  benchmark={SP500_AVERAGES.operatingMargin} 
+                  benchmark={benchmarks.operatingMargin} 
                 />
                 <MetricCard 
                   label="Cash Conversion" 
                   value={data.cashConversion} 
-                  benchmark={SP500_AVERAGES.cashConversion} 
+                  benchmark={benchmarks.cashConversion} 
                 />
                 <MetricCard 
                   label="Interest Cover" 
                   value={data.interestCover} 
-                  benchmark={SP500_AVERAGES.interestCover} 
+                  benchmark={benchmarks.interestCover} 
                   suffix="x"
                   isRatio
                 />
