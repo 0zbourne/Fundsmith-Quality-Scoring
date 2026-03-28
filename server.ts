@@ -88,13 +88,15 @@ app.get("/api/stock/:ticker", async (req, res) => {
     
     const getFullStockData = async (symbol: string) => {
       // Fetch core data in parallel
-      const [profile, ratios, metrics] = await Promise.all([
+      const [profile, ratios, metrics, growth, annualMetrics] = await Promise.all([
         fetchFMP(`profile/${symbol}`, "", customKey),
         fetchFMP(`ratios-ttm/${symbol}`, "", customKey),
-        fetchFMP(`key-metrics-ttm/${symbol}`, "", customKey)
+        fetchFMP(`key-metrics-ttm/${symbol}`, "", customKey),
+        fetchFMP(`financial-growth/${symbol}`, "limit=1", customKey),
+        fetchFMP(`key-metrics/${symbol}`, "limit=10", customKey)
       ]);
 
-      return { profile, ratios, metrics };
+      return { profile, ratios, metrics, growth, annualMetrics };
     };
 
     let data: any;
@@ -114,12 +116,22 @@ app.get("/api/stock/:ticker", async (req, res) => {
       }
     }
 
-    const { profile, ratios, metrics } = data;
+    const { profile, ratios, metrics, growth, annualMetrics } = data;
 
     if (profile && Array.isArray(profile) && profile.length > 0) {
       const p = profile[0];
       const r = (Array.isArray(ratios) && ratios.length > 0) ? ratios[0] : {};
       const m = (Array.isArray(metrics) && metrics.length > 0) ? metrics[0] : {};
+      const g = (Array.isArray(growth) && growth.length > 0) ? growth[0] : {};
+      
+      // Calculate historical FCF yield average
+      let historicalFcfYield = 0;
+      if (Array.isArray(annualMetrics) && annualMetrics.length > 0) {
+        const yields = annualMetrics.map((am: any) => am.freeCashFlowYield || 0).filter((y: number) => y !== 0);
+        if (yields.length > 0) {
+          historicalFcfYield = (yields.reduce((a: number, b: number) => a + b, 0) / yields.length) * 100;
+        }
+      }
 
       const stockData = {
         ticker: p.symbol,
@@ -133,6 +145,9 @@ app.get("/api/stock/:ticker", async (req, res) => {
         operatingMargin: (r.operatingProfitMarginTTM || 0) * 100,
         cashConversion: (m.cashFlowToNetIncomeRatioTTM || 0) * 100,
         interestCover: r.interestCoverageTTM || 0,
+        fcfYield: (m.freeCashFlowYieldTTM || 0) * 100,
+        fcfGrowthRate: (g.tenYFreeCashFlowGrowthPerShare || g.fiveYFreeCashFlowGrowthPerShare || 0) * 100,
+        historicalFcfYield: historicalFcfYield,
         source: "Financial Modeling Prep"
       };
       return res.json(stockData);

@@ -26,6 +26,7 @@ export default function App() {
   const [fmpApiKey, setFmpApiKey] = useState(() => localStorage.getItem('fmp_api_key') || '');
   const [benchmarks, setBenchmarks] = useState(SP500_AVERAGES);
   const [isBenchmarksLoading, setIsBenchmarksLoading] = useState(true);
+  const [refreshingTickers, setRefreshingTickers] = useState<Set<string>>(new Set());
   const [watchlist, setWatchlist] = useState<StockMetrics[]>(() => {
     const saved = localStorage.getItem('quality_watchlist');
     if (!saved) return [];
@@ -74,11 +75,18 @@ export default function App() {
   };
 
   const refreshWatchlistItem = async (ticker: string) => {
+    setRefreshingTickers(prev => new Set(prev).add(ticker));
     try {
       const result = await fetchStockData(ticker, fmpApiKey.trim(), benchmarks);
       setWatchlist(prev => prev.map(s => s.ticker === ticker ? result : s));
     } catch (err) {
       console.error(`Failed to refresh ${ticker}:`, err);
+    } finally {
+      setRefreshingTickers(prev => {
+        const next = new Set(prev);
+        next.delete(ticker);
+        return next;
+      });
     }
   };
 
@@ -504,7 +512,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-8 gap-y-2 flex-1 px-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-8 gap-y-2 flex-1 px-2">
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
                             <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
@@ -535,6 +543,15 @@ export default function App() {
                               {stock.interestCover.toFixed(1)}x
                             </span>
                           </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">FCF Yield</span>
+                            <div className="flex items-center gap-1">
+                              <span className={cn("text-xs font-mono font-bold", stock.fcfYield > stock.historicalFcfYield ? "text-emerald-400" : "text-rose-400")}>
+                                {stock.fcfYield.toFixed(1)}%
+                              </span>
+                              <span className="text-[8px] font-mono text-white/20">({stock.historicalFcfYield.toFixed(1)}%)</span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="flex items-center justify-between md:justify-end gap-6 pt-4 md:pt-0 border-t md:border-t-0 border-white/5">
@@ -552,7 +569,11 @@ export default function App() {
                           <div className="flex items-center gap-1">
                             <button 
                               onClick={() => refreshWatchlistItem(stock.ticker)}
-                              className="p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-emerald-500 transition-colors"
+                              disabled={refreshingTickers.has(stock.ticker)}
+                              className={cn(
+                                "p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-emerald-500 transition-colors",
+                                refreshingTickers.has(stock.ticker) && "animate-spin text-emerald-500"
+                              )}
                               title="Refresh Data"
                             >
                               <RefreshCcw className="w-4 h-4" />
