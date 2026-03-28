@@ -87,6 +87,15 @@ export default function App() {
     }
   };
 
+  const refreshAllWatchlist = async () => {
+    if (watchlist.length === 0) return;
+    
+    // Refresh items sequentially to avoid rate limits
+    for (const stock of watchlist) {
+      await refreshWatchlistItem(stock.ticker);
+    }
+  };
+
   const saveApiKey = () => {
     localStorage.setItem('fmp_api_key', fmpApiKey.trim());
     setIsSettingsOpen(false);
@@ -483,7 +492,19 @@ export default function App() {
                     <BarChart3 className="w-5 h-5 text-emerald-500" />
                     <h2 className="font-mono font-bold uppercase tracking-widest text-sm text-white/50">Quality Watchlist</h2>
                   </div>
-                  <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">{watchlist.length} Companies</span>
+                  <div className="flex items-center gap-4">
+                    {watchlist.length > 0 && (
+                      <button
+                        onClick={refreshAllWatchlist}
+                        disabled={refreshingTickers.size > 0}
+                        className="flex items-center gap-2 text-[10px] font-mono text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCcw className={cn("w-3 h-3", refreshingTickers.size > 0 && "animate-spin")} />
+                        Refresh All
+                      </button>
+                    )}
+                    <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">{watchlist.length} Companies</span>
+                  </div>
                 </div>
 
                 {watchlist.length > 0 ? (
