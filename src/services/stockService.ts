@@ -79,12 +79,11 @@ export async function fetchStockData(ticker: string, apiKey?: string, benchmarks
   let data: any;
 
   try {
-    const headers: Record<string, string> = {};
-    if (apiKey) {
-      headers['X-FMP-API-Key'] = apiKey;
-    }
+    const url = apiKey 
+      ? `/api/stock/${ticker}?apiKey=${encodeURIComponent(apiKey.trim())}`
+      : `/api/stock/${ticker}`;
 
-    const response = await fetch(`/api/stock/${ticker}`, { headers });
+    const response = await fetch(url);
     if (response.ok) {
       data = await response.json();
     } else {

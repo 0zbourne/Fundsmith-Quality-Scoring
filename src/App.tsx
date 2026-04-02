@@ -112,14 +112,25 @@ export default function App() {
     setIsTestingKey(true);
     setTestResult(null);
     try {
-      const res = await fetch('/api/debug/fmp', {
-        headers: {
-          'X-FMP-API-Key': fmpApiKey.trim()
-        }
-      });
+      console.log("Testing API key...");
+      // Use query parameter instead of custom header to avoid preflight/proxy issues
+      const res = await fetch(`/api/debug/fmp?apiKey=${encodeURIComponent(fmpApiKey.trim())}`);
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("Non-JSON response from test endpoint:", text.substring(0, 500));
+        setTestResult({ 
+          status: 'error', 
+          message: `Server returned non-JSON response (Status ${res.status}). This usually happens if the request is blocked by a security layer. Try again or check your network.` 
+        });
+        return;
+      }
+
       const data = await res.json();
       setTestResult(data);
     } catch (err: any) {
+      console.error("Test API Key error:", err);
       setTestResult({ status: 'error', message: `Connection failed: ${err.message}` });
     } finally {
       setIsTestingKey(false);

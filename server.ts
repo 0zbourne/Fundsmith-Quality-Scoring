@@ -2,12 +2,15 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
+import cors from "cors";
 
+console.log("SERVER: Initializing backend...");
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
+app.use(cors());
 app.use(express.json());
 
 // Helper to fetch from FMP with consistent error handling and correct parameter syntax
@@ -29,74 +32,155 @@ const fetchFMP = async (endpoint: string, params: string = "", customKey?: strin
     url += `${separator}apikey=${fmpKey}`;
   }
   
-  console.log(`Fetching FMP: ${url.replace(fmpKey, "********")}`);
+  const obfuscatedKey = fmpKey.length > 8 
+    ? `${fmpKey.substring(0, 4)}...${fmpKey.substring(fmpKey.length - 4)}`
+    : "****";
+  console.log(`Fetching FMP (${obfuscatedKey}): ${url.replace(fmpKey, "********")}`);
   
   try {
     const response = await fetch(url);
     
-    // Check for 403 first as it often returns HTML
-    if (response.status === 403) {
-      throw new Error("FMP API Key is invalid, unauthorized, or your plan does not cover this endpoint (403).");
+    // Check for 403/401 first
+    if (response.status === 403 || response.status === 401) {
+      const contentType = response.headers.get("content-type");
+      let errorMessage = `FMP API returned ${response.status} Forbidden/Unauthorized.`;
+      
+      if (contentType && contentType.includes("application/json")) {
+        const errorData = await response.json();
+        if (errorData["Error Message"]) {
+          const msg = errorData["Error Message"].toLowerCase();
+          // If it's a legacy endpoint error, return null so we can fallback to AI
+          if (msg.includes("legacy")) {
+            console.warn(`FMP Legacy Endpoint detected for ${endpoint}. Returning null for fallback.`);
+            return null;
+          }
+          errorMessage = `FMP API Error: ${errorData["Error Message"]}`;
+        }
+      } else {
+        const text = await response.text();
+        console.warn(`FMP ${response.status} non-JSON response:`, text.substring(0, 200));
+      }
+      
+      const isInternational = endpoint.includes(".") || params.includes(".");
+      console.warn(`${errorMessage} for endpoint: ${endpoint}. ${isInternational ? "Note: International stocks are not supported on the Free plan." : ""}`);
+      
+      // Throw a specific error for auth issues so the caller knows it's a key problem
+      throw new Error(`API Key Error: ${errorMessage}`);
     }
 
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       const text = await response.text();
       console.error(`FMP non-JSON response (${response.status}):`, text.substring(0, 200));
-      throw new Error(`FMP returned an unexpected response format (Status ${response.status}). This usually happens if the API key is rejected or the endpoint is restricted.`);
+      throw new Error(`FMP returned an unexpected response format (Status ${response.status}).`);
     }
 
     const data = await response.json();
 
     if (data && data["Error Message"]) {
-      throw new Error(`FMP API Error: ${data["Error Message"]}`);
+      const msg = data["Error Message"].toLowerCase();
+      console.warn(`FMP API Error Message for ${endpoint}: ${data["Error Message"]}`);
+      
+      // If it's a legacy endpoint error, return null so we can fallback to AI in the main flow
+      if (msg.includes("legacy")) {
+        return null;
+      }
+      
+      // For any other error message (invalid key, unauthorized, plan limits, etc.), throw it
+      throw new Error(`API Key Error: ${data["Error Message"]}`);
     }
 
     if (!response.ok) {
-      throw new Error(`FMP API returned status ${response.status}: ${response.statusText}`);
+      console.warn(`FMP API returned status ${response.status} for ${endpoint}`);
+      throw new Error(`FMP API returned status ${response.status}`);
     }
 
     return data;
   } catch (err: any) {
-    console.error("fetchFMP error:", err.message);
-    throw err;
+    // Re-throw if it's an API Key Error or configuration issue
+    if (err.message.includes("API Key Error") || err.message.includes("not configured")) {
+      throw err;
+    }
+    console.error(`fetchFMP network/system error for ${endpoint}:`, err.message);
+    // For other errors (network, etc.), throw a generic error instead of returning null
+    // so we don't misinterpret it as a 403 key rejection
+    throw new Error(`Network or System Error: ${err.message}`);
   }
 };
 
 // API Routes
 app.get("/api/debug/fmp", async (req, res) => {
-  const customKey = req.headers["x-fmp-api-key"] as string;
+  console.log("DEBUG: Received request for /api/debug/fmp");
+  const customKey = (req.query.apiKey as string) || (req.headers["x-fmp-api-key"] as string);
+  
   try {
-    // Test with a basic profile call for AAPL
-    const data = await fetchFMP("profile/AAPL", "", customKey);
+    // Test with 'search' instead of 'quote' as it's the most universal endpoint for new accounts
+    const data = await fetchFMP("search", "query=AAPL&limit=1", customKey);
+    
     if (data && Array.isArray(data) && data.length > 0) {
-      return res.json({ status: "ok", message: "Connection successful! Your API key is valid and working." });
+      console.log("DEBUG: fetchFMP successful");
+      return res.json({ 
+        status: "ok", 
+        message: "Connection successful! Your API key is valid and working for basic US stock data." 
+      });
     }
-    return res.json({ status: "error", message: "Key is valid but returned no data. This is unusual for AAPL." });
+    
+    // If search returns [], try one more extremely basic endpoint
+    const quoteShort = await fetchFMP("quote-short/AAPL", "", customKey);
+    if (quoteShort && Array.isArray(quoteShort) && quoteShort.length > 0) {
+      return res.json({ 
+        status: "ok", 
+        message: "Connection successful! Your API key is valid (verified via quote-short)." 
+      });
+    }
+
+    return res.json({ 
+      status: "error", 
+      message: "Key is valid but returned no data for AAPL. This can happen if your account is brand new and still synchronizing, or if your plan has specific regional restrictions." 
+    });
   } catch (err: any) {
-    console.error("Debug Error:", err.message);
-    return res.json({ status: "error", message: err.message });
+    console.error("DEBUG: Debug Route Error:", err.message);
+    
+    let statusCode = 500;
+    let message = err.message;
+
+    if (err.message.includes("API Key Error")) {
+      statusCode = 403;
+      message = `FMP API Key rejected: ${err.message.replace("API Key Error: ", "")}. Please verify your key is active and supports US stocks.`;
+    } else if (err.message.includes("Network")) {
+      statusCode = 503;
+      message = `Could not connect to FMP servers: ${err.message}`;
+    }
+
+    return res.json({ 
+      status: "error", 
+      code: statusCode,
+      message: message 
+    });
   }
 });
 
 app.get("/api/stock/:ticker", async (req, res) => {
   const { ticker } = req.params;
-  const customKey = req.headers["x-fmp-api-key"] as string;
+  console.log(`DEBUG: Received request for /api/stock/${ticker}`);
+  const customKey = (req.query.apiKey as string) || (req.headers["x-fmp-api-key"] as string);
 
   try {
     console.log(`Processing request for ticker: "${ticker}"`);
     
     const getFullStockData = async (symbol: string) => {
-      // Fetch core data in parallel
-      const [profile, ratios, metrics, growth, annualMetrics] = await Promise.all([
+      // Fetch core data in parallel. Some may return null if on Free plan or Legacy restriction.
+      // For new users (post Aug 31, 2025), some -ttm endpoints are restricted.
+      const [profile, ratios, metrics, growth, annualMetrics, quote] = await Promise.all([
         fetchFMP(`profile/${symbol}`, "", customKey),
         fetchFMP(`ratios-ttm/${symbol}`, "", customKey),
         fetchFMP(`key-metrics-ttm/${symbol}`, "", customKey),
         fetchFMP(`financial-growth/${symbol}`, "limit=1", customKey),
-        fetchFMP(`key-metrics/${symbol}`, "limit=10", customKey)
+        fetchFMP(`key-metrics/${symbol}`, "limit=10", customKey),
+        fetchFMP(`quote/${symbol}`, "", customKey)
       ]);
 
-      return { profile, ratios, metrics, growth, annualMetrics };
+      return { profile, ratios, metrics, growth, annualMetrics, quote };
     };
 
     let data: any;
@@ -116,10 +200,24 @@ app.get("/api/stock/:ticker", async (req, res) => {
       }
     }
 
-    const { profile, ratios, metrics, growth, annualMetrics } = data;
+    const { profile, ratios, metrics, growth, annualMetrics, quote } = data;
 
-    if (profile && Array.isArray(profile) && profile.length > 0) {
-      const p = profile[0];
+    // If we have a profile but no ratios/metrics (common on Free plan or Legacy restriction), 
+    // we should consider this a partial failure and let the frontend fallback to Gemini
+    const hasEssentialMetrics = (ratios && ratios.length > 0) || (metrics && metrics.length > 0);
+    
+    // Check if we have basic data (either profile or quote)
+    const hasBasicData = (profile && Array.isArray(profile) && profile.length > 0) || 
+                         (quote && Array.isArray(quote) && quote.length > 0);
+
+    if (hasBasicData) {
+      if (!hasEssentialMetrics) {
+        console.log("Basic data found but essential metrics (ratios/metrics) are missing. Likely a Free plan or Legacy restriction.");
+        throw new Error("FMP Free plan (or Legacy restriction) does not support the required technical metrics for this analysis. Falling back to AI search...");
+      }
+
+      const p = (profile && profile.length > 0) ? profile[0] : {};
+      const q = (quote && quote.length > 0) ? quote[0] : {};
       const r = (Array.isArray(ratios) && ratios.length > 0) ? ratios[0] : {};
       const m = (Array.isArray(metrics) && metrics.length > 0) ? metrics[0] : {};
       const g = (Array.isArray(growth) && growth.length > 0) ? growth[0] : {};
@@ -134,12 +232,12 @@ app.get("/api/stock/:ticker", async (req, res) => {
       }
 
       const stockData = {
-        ticker: p.symbol,
-        name: p.companyName,
-        description: p.description,
-        price: p.price,
-        changes: p.changes,
-        image: p.image,
+        ticker: p.symbol || q.symbol || ticker.toUpperCase(),
+        name: p.companyName || q.name || ticker.toUpperCase(),
+        description: p.description || `Financial data for ${p.symbol || q.symbol}`,
+        price: p.price || q.price || 0,
+        changes: p.changes || q.changes || 0,
+        image: p.image || "",
         roce: (r.returnOnCapitalEmployedTTM || 0) * 100,
         grossMargin: (r.grossProfitMarginTTM || 0) * 100,
         operatingMargin: (r.operatingProfitMarginTTM || 0) * 100,
