@@ -38,7 +38,12 @@ const fetchFMP = async (endpoint: string, params: string = "", customKey?: strin
   console.log(`Fetching FMP (${obfuscatedKey}): ${url.replace(fmpKey, "********")}`);
   
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+      }
+    });
     
     // Check for 403/401 first
     if (response.status === 403 || response.status === 401) {
@@ -113,51 +118,64 @@ app.get("/api/debug/fmp", async (req, res) => {
   console.log("DEBUG: Received request for /api/debug/fmp");
   const customKey = (req.query.apiKey as string) || (req.headers["x-fmp-api-key"] as string);
   
-  try {
-    // Test with 'search' instead of 'quote' as it's the most universal endpoint for new accounts
-    const data = await fetchFMP("search", "query=AAPL&limit=1", customKey);
-    
-    if (data && Array.isArray(data) && data.length > 0) {
-      console.log("DEBUG: fetchFMP successful");
-      return res.json({ 
-        status: "ok", 
-        message: "Connection successful! Your API key is valid and working for basic US stock data." 
+  if (!customKey) {
+    return res.json({ status: "error", message: "No API key provided for testing." });
+  }
+
+  const tests = [
+    { name: "Quote", endpoint: "quote/AAPL", params: "" },
+    { name: "Profile", endpoint: "profile/AAPL", params: "" },
+    { name: "Search", endpoint: "search", params: "query=AAPL&limit=1" },
+    { name: "Quote Short", endpoint: "quote-short/AAPL", params: "" }
+  ];
+
+  const results: any[] = [];
+  let successCount = 0;
+
+  for (const test of tests) {
+    try {
+      const data = await fetchFMP(test.endpoint, test.params, customKey);
+      const hasData = data && Array.isArray(data) && data.length > 0;
+      if (hasData) successCount++;
+      
+      results.push({
+        endpoint: test.name,
+        status: hasData ? "ok" : (data === null ? "legacy/restricted" : "empty"),
+        message: hasData ? "Data returned successfully." : (data === null ? "Legacy endpoint or restricted by plan." : "Endpoint returned no data.")
+      });
+    } catch (err: any) {
+      results.push({
+        endpoint: test.name,
+        status: "error",
+        message: err.message
       });
     }
-    
-    // If search returns [], try one more extremely basic endpoint
-    const quoteShort = await fetchFMP("quote-short/AAPL", "", customKey);
-    if (quoteShort && Array.isArray(quoteShort) && quoteShort.length > 0) {
-      return res.json({ 
-        status: "ok", 
-        message: "Connection successful! Your API key is valid (verified via quote-short)." 
-      });
-    }
+  }
 
-    return res.json({ 
-      status: "error", 
-      message: "Key is valid but returned no data for AAPL. This can happen if your account is brand new and still synchronizing, or if your plan has specific regional restrictions." 
-    });
-  } catch (err: any) {
-    console.error("DEBUG: Debug Route Error:", err.message);
-    
-    let statusCode = 500;
-    let message = err.message;
-
-    if (err.message.includes("API Key Error")) {
-      statusCode = 403;
-      message = `FMP API Key rejected: ${err.message.replace("API Key Error: ", "")}. Please verify your key is active and supports US stocks.`;
-    } else if (err.message.includes("Network")) {
-      statusCode = 503;
-      message = `Could not connect to FMP servers: ${err.message}`;
-    }
-
-    return res.json({ 
-      status: "error", 
-      code: statusCode,
-      message: message 
+  if (successCount > 0) {
+    const workingEndpoints = results.filter(r => r.status === "ok").map(r => r.endpoint).join(", ");
+    return res.json({
+      status: "ok",
+      message: `Connection successful! Working endpoints: ${workingEndpoints}.`,
+      details: results
     });
   }
+
+  // If all failed, check if any were "legacy/restricted"
+  const restricted = results.filter(r => r.status === "legacy/restricted");
+  if (restricted.length > 0) {
+    return res.json({
+      status: "error",
+      message: "Your API key is valid, but FMP is restricting access to these endpoints (Legacy/Plan restriction). The app will automatically use Gemini AI to fetch data for you.",
+      details: results
+    });
+  }
+
+  return res.json({
+    status: "error",
+    message: "Your API key is valid but all tested endpoints returned no data. This often happens with brand new keys (syncing) or regional restrictions. Try searching for a stock anyway; the app will use AI as a fallback.",
+    details: results
+  });
 });
 
 app.get("/api/stock/:ticker", async (req, res) => {
@@ -170,17 +188,19 @@ app.get("/api/stock/:ticker", async (req, res) => {
     
     const getFullStockData = async (symbol: string) => {
       // Fetch core data in parallel. Some may return null if on Free plan or Legacy restriction.
-      // For new users (post Aug 31, 2025), some -ttm endpoints are restricted.
-      const [profile, ratios, metrics, growth, annualMetrics, quote] = await Promise.all([
+      // For new users (post Aug 31, 2025), many v3 endpoints are restricted.
+      const [profile, ratios, metrics, growth, annualMetrics, quote, searchResults, quoteShort] = await Promise.all([
         fetchFMP(`profile/${symbol}`, "", customKey),
         fetchFMP(`ratios-ttm/${symbol}`, "", customKey),
         fetchFMP(`key-metrics-ttm/${symbol}`, "", customKey),
         fetchFMP(`financial-growth/${symbol}`, "limit=1", customKey),
         fetchFMP(`key-metrics/${symbol}`, "limit=10", customKey),
-        fetchFMP(`quote/${symbol}`, "", customKey)
+        fetchFMP(`quote/${symbol}`, "", customKey),
+        fetchFMP("search", `query=${symbol}&limit=1`, customKey),
+        fetchFMP(`quote-short/${symbol}`, "", customKey)
       ]);
 
-      return { profile, ratios, metrics, growth, annualMetrics, quote };
+      return { profile, ratios, metrics, growth, annualMetrics, quote, searchResults, quoteShort };
     };
 
     let data: any;
@@ -200,15 +220,23 @@ app.get("/api/stock/:ticker", async (req, res) => {
       }
     }
 
-    const { profile, ratios, metrics, growth, annualMetrics, quote } = data;
+    const { profile, ratios, metrics, growth, annualMetrics, quote, searchResults, quoteShort } = data;
+
+    // Use whichever basic data endpoint worked
+    const p = (profile && profile.length > 0) ? profile[0] : {};
+    const q = (quote && quote.length > 0) ? quote[0] : {};
+    const s = (searchResults && searchResults.length > 0) ? searchResults[0] : {};
+    const qs = (quoteShort && quoteShort.length > 0) ? quoteShort[0] : {};
 
     // If we have a profile but no ratios/metrics (common on Free plan or Legacy restriction), 
     // we should consider this a partial failure and let the frontend fallback to Gemini
-    const hasEssentialMetrics = (ratios && ratios.length > 0) || (metrics && metrics.length > 0);
+    const hasEssentialMetrics = (Array.isArray(ratios) && ratios.length > 0) || (Array.isArray(metrics) && metrics.length > 0);
     
-    // Check if we have basic data (either profile or quote)
+    // Check if we have basic data (either profile, quote, search or quote-short)
     const hasBasicData = (profile && Array.isArray(profile) && profile.length > 0) || 
-                         (quote && Array.isArray(quote) && quote.length > 0);
+                         (quote && Array.isArray(quote) && quote.length > 0) ||
+                         (searchResults && Array.isArray(searchResults) && searchResults.length > 0) ||
+                         (quoteShort && Array.isArray(quoteShort) && quoteShort.length > 0);
 
     if (hasBasicData) {
       if (!hasEssentialMetrics) {
@@ -216,8 +244,6 @@ app.get("/api/stock/:ticker", async (req, res) => {
         throw new Error("FMP Free plan (or Legacy restriction) does not support the required technical metrics for this analysis. Falling back to AI search...");
       }
 
-      const p = (profile && profile.length > 0) ? profile[0] : {};
-      const q = (quote && quote.length > 0) ? quote[0] : {};
       const r = (Array.isArray(ratios) && ratios.length > 0) ? ratios[0] : {};
       const m = (Array.isArray(metrics) && metrics.length > 0) ? metrics[0] : {};
       const g = (Array.isArray(growth) && growth.length > 0) ? growth[0] : {};
@@ -232,11 +258,11 @@ app.get("/api/stock/:ticker", async (req, res) => {
       }
 
       const stockData = {
-        ticker: p.symbol || q.symbol || ticker.toUpperCase(),
-        name: p.companyName || q.name || ticker.toUpperCase(),
-        description: p.description || `Financial data for ${p.symbol || q.symbol}`,
-        price: p.price || q.price || 0,
-        changes: p.changes || q.changes || 0,
+        ticker: p.symbol || q.symbol || qs.symbol || s.symbol || ticker.toUpperCase(),
+        name: p.companyName || q.name || qs.name || s.name || ticker.toUpperCase(),
+        description: p.description || `Financial data for ${p.symbol || q.symbol || qs.symbol || s.symbol}`,
+        price: p.price || q.price || qs.price || 0,
+        changes: p.changes || q.changes || qs.changes || 0,
         image: p.image || "",
         roce: (r.returnOnCapitalEmployedTTM || 0) * 100,
         grossMargin: (r.grossProfitMarginTTM || 0) * 100,
