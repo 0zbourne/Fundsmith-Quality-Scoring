@@ -701,7 +701,9 @@ export default function App() {
 
                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">FCF Growth (3-4Y)</span>
+                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">
+                        FCF Growth ({data.isAiUsed ? '10Y' : '3-4Y'})
+                      </span>
                       {data.volatileFcf ? (
                         <AlertCircle className="w-4 h-4 text-amber-500 animate-pulse" title="High Volatility Detected" />
                       ) : (
