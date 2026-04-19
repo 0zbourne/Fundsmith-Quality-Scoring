@@ -260,6 +260,7 @@ app.get("/api/stock/:ticker", async (req, res) => {
       const stockData = {
         ticker: p.symbol || q.symbol || qs.symbol || s.symbol || ticker.toUpperCase(),
         name: p.companyName || q.name || qs.name || s.name || ticker.toUpperCase(),
+        country: p.country || s.country || "",
         description: p.description || `Financial data for ${p.symbol || q.symbol || qs.symbol || s.symbol}`,
         price: p.price || q.price || qs.price || 0,
         changes: p.changes || q.changes || qs.changes || 0,

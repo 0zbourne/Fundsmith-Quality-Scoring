@@ -227,17 +227,21 @@ export default function App() {
     value, 
     benchmark, 
     suffix = '%', 
-    isRatio = false 
+    isRatio = false,
+    subValue,
+    subLabel
   }: { 
     label: string; 
     value: number; 
     benchmark: number; 
     suffix?: string;
     isRatio?: boolean;
+    subValue?: number;
+    subLabel?: string;
   }) => {
     const beats = value > benchmark;
     return (
-      <div className="bg-white/5 border border-white/10 p-4 rounded-lg flex flex-col gap-2">
+      <div className="bg-white/5 border border-white/10 p-4 rounded-lg flex flex-col gap-2 hover:bg-white/[0.08] transition-all">
         <div className="flex justify-between items-center">
           <span className="text-xs font-mono uppercase tracking-wider text-white/50">{label}</span>
           {beats ? (
@@ -246,13 +250,23 @@ export default function App() {
             <XCircle className="w-4 h-4 text-rose-400" />
           )}
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-mono font-bold text-white">
-            {value.toFixed(isRatio ? 2 : 1)}{suffix}
-          </span>
-          <span className="text-[10px] font-mono text-white/30">
-            vs {benchmark}{suffix} avg
-          </span>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-mono font-bold text-white">
+              {value.toFixed(isRatio ? 2 : 1)}{suffix}
+            </span>
+            <span className="text-[10px] font-mono text-white/30">
+              vs {benchmark}{suffix} avg
+            </span>
+          </div>
+          {subValue !== undefined && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-white/60">
+                {subValue.toFixed(isRatio ? 2 : 1)}{suffix}
+              </span>
+              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">{subLabel || "20Y Avg"}</span>
+            </div>
+          )}
         </div>
         <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-2">
           <div 
@@ -530,6 +544,12 @@ export default function App() {
                             <h3 className="font-bold text-sm truncate">{cleanCompanyName(stock.name)}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] font-mono font-bold text-emerald-500/70">{stock.ticker}</span>
+                              {stock.country && (
+                                <>
+                                  <span className="text-[10px] opacity-10">|</span>
+                                  <span className="text-[10px] font-mono text-white/30 uppercase">{stock.country}</span>
+                                </>
+                              )}
                               <span className="text-[10px] opacity-10">|</span>
                               <span className="text-[10px] font-mono text-white/40 uppercase tracking-tighter">Score: {stock.score.toFixed(1)}</span>
                             </div>
@@ -539,9 +559,14 @@ export default function App() {
                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-8 gap-y-2 flex-1 px-2">
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
-                            <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
-                              {stock.roce.toFixed(1)}%
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
+                                {stock.roce.toFixed(1)}%
+                              </span>
+                              {stock.averageRoce !== undefined && (
+                                <span className="text-[8px] font-mono text-white/20">({stock.averageRoce.toFixed(1)}%)</span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
@@ -743,6 +768,11 @@ export default function App() {
                       {data.ticker}
                     </span>
                     <h2 className="text-4xl font-bold tracking-tight">{cleanCompanyName(data.name)}</h2>
+                    {data.country && (
+                      <span className="text-xs font-mono text-white/30 border border-white/10 px-2 py-0.5 rounded-full uppercase">
+                        {data.country}
+                      </span>
+                    )}
                     <button 
                       onClick={() => addToWatchlist(data)}
                       disabled={watchlist.some(s => s.ticker === data.ticker)}
@@ -789,6 +819,8 @@ export default function App() {
                   label="ROCE" 
                   value={data.roce} 
                   benchmark={benchmarks.roce} 
+                  subValue={data.averageRoce}
+                  subLabel="20Y Avg"
                 />
                 <MetricCard 
                   label="Gross Margin" 
