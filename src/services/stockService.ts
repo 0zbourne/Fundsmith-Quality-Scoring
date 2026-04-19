@@ -17,6 +17,7 @@ export interface StockMetrics {
   historicalBreakdown?: Array<{
     year: number;
     fcfYield: number;
+    fcfValue?: number;
     source: string;
   }>;
   isAiUsed?: boolean;

@@ -699,7 +699,12 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4 relative overflow-hidden">
+                    {data.isAiUsed && (
+                      <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[8px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center gap-1">
+                        <FlaskConical className="w-2 h-2" /> AI RESEARCH
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-mono uppercase tracking-wider text-white/50">
                         FCF Growth ({data.isAiUsed ? '10Y' : '3-4Y'})
@@ -719,9 +724,32 @@ export default function App() {
                         ? "Warning: Cash flows are inconsistent. CAGR may be misleading due to significant year-over-year variance."
                         : "Compounded annual growth rate of free cash flow over the available history."}
                     </p>
+                    {data.historicalBreakdown && (
+                        <div className="pt-2 border-t border-white/10">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-mono text-white/30 uppercase">Annual FCF</span>
+                            <span className="text-[9px] font-mono text-white/20">{data.historicalBreakdown.length} Periods</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {data.historicalBreakdown.slice(0, 10).map((b: any) => (
+                              <div key={b.year} className="flex justify-between items-center group/item">
+                                <span className={cn(
+                                  "text-[10px] font-mono",
+                                  b.source === 'AI Research' ? "text-emerald-500/70" : "text-white/40"
+                                )}>
+                                  {b.year}
+                                </span>
+                                <span className="text-[10px] font-mono text-white/60">
+                                  {b.fcfValue ? (Math.abs(b.fcfValue) >= 1e9 ? `${(b.fcfValue / 1e9).toFixed(1)}B` : Math.abs(b.fcfValue) >= 1e6 ? `${(b.fcfValue / 1e6).toFixed(1)}M` : b.fcfValue.toLocaleString()) : 'N/A'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
 
-                     <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4 relative overflow-hidden">
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4 relative overflow-hidden">
                     {data.isAiUsed && (
                       <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[8px] font-bold px-2 py-0.5 rounded-bl-lg flex items-center gap-1">
                         <FlaskConical className="w-2 h-2" /> AI RESEARCH

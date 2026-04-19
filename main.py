@@ -198,7 +198,7 @@ def get_stock(ticker: str, aiFallback: bool = False):
                         year = int(date.year) if hasattr(date, 'year') else int(str(date)[:4])
                         valid_points.append((year, float(val)))
                         fcf_history.append(y_yield)
-                        api_breakdown.append({"year": year, "fcfYield": float(y_yield), "source": "API"})
+                        api_breakdown.append({"year": year, "fcfYield": float(y_yield), "fcfValue": float(val), "source": "API"})
 
         fcf_ttm_yield = api_breakdown[0]["fcfYield"] if api_breakdown else 0
         
