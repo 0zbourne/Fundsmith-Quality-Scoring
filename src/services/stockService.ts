@@ -20,6 +20,7 @@ export interface StockMetrics {
     source: string;
   }>;
   isAiUsed?: boolean;
+  volatileFcf?: boolean;
   score: number;
   description: string;
   source: string;

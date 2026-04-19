@@ -701,15 +701,21 @@ export default function App() {
 
                   <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">FCF Growth (10Y)</span>
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                      <span className="text-xs font-mono uppercase tracking-wider text-white/50">FCF Growth (3-4Y)</span>
+                      {data.volatileFcf ? (
+                        <AlertCircle className="w-4 h-4 text-amber-500 animate-pulse" title="High Volatility Detected" />
+                      ) : (
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                      )}
                     </div>
                     <div className="flex items-baseline gap-2">
                       <span className="text-4xl font-mono font-bold text-white">{data.fcfGrowthRate.toFixed(1)}%</span>
-                      <span className="text-xs text-white/30">CAGR</span>
+                      <span className="text-xs text-white/30 text-nowrap">CAGR</span>
                     </div>
                     <p className="text-xs text-white/40 leading-relaxed">
-                      Historical compound annual growth rate of free cash flow over the last decade.
+                      {data.volatileFcf 
+                        ? "Warning: Cash flows are inconsistent. CAGR may be misleading due to significant year-over-year variance."
+                        : "Compounded annual growth rate of free cash flow over the available history."}
                     </p>
                   </div>
 

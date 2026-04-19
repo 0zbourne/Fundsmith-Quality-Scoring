@@ -39,22 +39,24 @@ def get_ai_company_summary(ticker: str, name: str):
     try:
         # Using Gemini 3 Flash as suggested
         model = genai.GenerativeModel('gemini-3-flash-preview')
-        prompt = f"Provide a single, professional one-sentence description of {name} ({ticker}). Focus only on its core business."
+        prompt = f"Provide a single, professional one-sentence description of {name} ({ticker}). Focus only on its core business. Avoid using 'Inc.' or abbreviations at the end of the sentence if possible."
         response = model.generate_content(prompt)
         text = response.text.strip()
         import re
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        # Sophisticated sentence splitter: split at punctuation followed by space and Capital Letter,
+        # but NOT after common abbreviations like Inc, Corp, Ltd.
+        sentences = re.split(r'(?<!Inc)(?<!Corp)(?<!Ltd)(?<!Co)(?<!S\.A)(?<!B\.V)\. (?=[A-Z])', text)
         return (sentences[0] if sentences else text).strip()
     except Exception:
         return ""
 
-def research_historical_fcf(ticker: str):
+def research_historical_fcf(ticker: str, currency: str = "USD"):
     """AI Research for years 6-10 using Gemini 3 Flash."""
     if not GOOGLE_API_KEY:
         return []
     try:
         model = genai.GenerativeModel('gemini-3-flash-preview')
-        prompt = f"Find the actual annual Free Cash Flow (FCF) Yield for {ticker} for the years 2015, 2016, 2017, 2018, 2019, 2020. Format ONLY as a JSON list: [{{'year': 2017, 'fcfYield': 3.2}}]. If uncertain, provide your best professional estimate based on historical performance."
+        prompt = f"Find the actual annual Free Cash Flow (FCF) Yield AND the absolute FCF Value in {currency} for {ticker} for the years 2015, 2016, 2017, 2018, 2019, 2020. Format ONLY as a JSON list: [{{'year': 2017, 'fcfYield': 3.2, 'fcfValue': 1500000000}}]. If uncertain, provide your best professional estimate."
         response = model.generate_content(prompt)
         text = response.text.strip()
         if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
@@ -95,17 +97,19 @@ def get_stock(ticker: str, aiFallback: bool = False):
                 desc = desc or full_info.get("longBusinessSummary") or ""
             except: pass
 
-        # Enforce ONE sentence limit strictly
+        # Description Logic - Refined truncation
         final_name = name or ticker
-        if not desc or len(desc) < 20:
+        final_description = ensure_str(ticker_obj.info.get("longBusinessSummary"))
+        if not final_description or len(final_description) < 20: 
             final_description = get_ai_company_summary(ticker, final_name)
         else:
             import re
-            # Split by sentence-ending punctuation followed by whitespace or end of string
-            sentences = re.split(r'(?<=[.!?])\s+', desc.strip())
-            final_description = sentences[0] if sentences else ""
-            if final_description and not final_description.endswith((".", "!", "?")):
-                final_description += "."
+            # Split sentences but ignore dots in common abbreviations
+            sentences = re.split(r'(?<!Inc)(?<!Corp)(?<!Ltd)(?<!Co)(?<!S\.A)(?<!B\.V)\. (?=[A-Z])', final_description)
+            if sentences:
+                s = sentences[0].strip()
+                if not s.endswith("."): s += "."
+                final_description = s
 
         final_country = ensure_str(p_data.get("country") or "")
         
@@ -170,9 +174,12 @@ def get_stock(ticker: str, aiFallback: bool = False):
             
         market_cap_base = normalized_price * shares
         
-        # 2. Extract FCF History
+        # 2. Extract FCF History & Growth
         api_breakdown = []
         fcf_history = []
+        fcf_growth_rate = 0
+        volatile_fcf = False
+        valid_points = []
         
         # Look for FCF with or without spaces, normalized
         fcf_series = pd.Series()
@@ -189,9 +196,10 @@ def get_stock(ticker: str, aiFallback: bool = False):
                     y_yield = (float(val) / market_cap_base * 100) if market_cap_base > 0 else 0
                     if not np.isinf(y_yield) and not np.isnan(y_yield):
                         year = int(date.year) if hasattr(date, 'year') else int(str(date)[:4])
+                        valid_points.append((year, float(val)))
                         fcf_history.append(y_yield)
                         api_breakdown.append({"year": year, "fcfYield": float(y_yield), "source": "API"})
-        
+
         fcf_ttm_yield = api_breakdown[0]["fcfYield"] if api_breakdown else 0
         
         # Interest Cover
@@ -205,11 +213,33 @@ def get_stock(ticker: str, aiFallback: bool = False):
 
         ai_breakdown = []
         if aiFallback:
-            ai_data = research_historical_fcf(ticker)
+            ai_data = research_historical_fcf(ticker, currency or "USD")
             for item in ai_data:
                 if not any(b['year'] == item['year'] for b in api_breakdown):
-                    fcf_history.append(item['fcfYield'])
+                    y_yield = float(item.get('fcfYield', 0))
+                    fcf_val = float(item.get('fcfValue', 0))
+                    if y_yield > 0:
+                        fcf_history.append(y_yield)
+                    if fcf_val != 0:
+                        valid_points.append((int(item['year']), fcf_val))
                     ai_breakdown.append({**item, "source": "AI Research"})
+
+        # Final 10-Year Growth Calculation (CAGR)
+        if len(valid_points) >= 2:
+            valid_points.sort(key=lambda x: x[0]) # Chronological
+            start_yr, start_val = valid_points[0]
+            end_yr, end_val = valid_points[-1]
+            n_years = end_yr - start_yr
+            if n_years > 0 and start_val > 0 and end_val > 0:
+                fcf_growth_rate = ((end_val / start_val) ** (1 / n_years) - 1) * 100
+            
+            # 10-Year Volatility Detection
+            vals = [p[1] for p in valid_points]
+            mean_fcf = sum(vals) / len(vals)
+            if mean_fcf != 0:
+                std_dev = np.std(vals)
+                cv = std_dev / abs(mean_fcf)
+                volatile_fcf = bool(cv > 0.4)
 
         historical_fcf_yield = sum(fcf_history)/len(fcf_history) if fcf_history else 0
 
@@ -218,9 +248,10 @@ def get_stock(ticker: str, aiFallback: bool = False):
             "price": normalized_price, "changes": (fast_info.get("yearChange", 0) or 0) * 100,
             "roce": roce, "grossMargin": gross_margin, "operatingMargin": op_margin,
             "cashConversion": cash_conv, "interestCover": interest_cover,
-            "fcfYield": fcf_ttm_yield, "fcfGrowthRate": 0, "historicalFcfYield": historical_fcf_yield,
+            "fcfYield": fcf_ttm_yield, "fcfGrowthRate": fcf_growth_rate, "historicalFcfYield": historical_fcf_yield,
             "historicalBreakdown": sorted(api_breakdown + ai_breakdown, key=lambda x: x['year'], reverse=True),
             "isAiUsed": aiFallback and len(ai_breakdown) > 0,
+            "volatileFcf": volatile_fcf,
             "source": f"Yahoo Finance ({currency.upper()})"
         }
 
