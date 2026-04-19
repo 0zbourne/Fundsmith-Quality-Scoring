@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import yfinance as yf
+from openbb import obb
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -57,19 +58,37 @@ def get_stock(ticker: str, aiFallback: bool = False):
         ticker = ticker.upper()
         ticker_obj = yf.Ticker(ticker)
 
-        # Get metadata efficiently using fast_info first
+        # 1. Fetch Profile Metadata via OpenBB (fast & reliable)
+        p_data = {}
+        try:
+            profile_res = obb.equity.profile(ticker, provider="yfinance")
+            if profile_res and profile_res.results:
+                profile_list = profile_res.to_dict()
+                if isinstance(profile_list, list) and len(profile_list) > 0:
+                    p_data = profile_list[0]
+        except Exception as e:
+            print(f"OpenBB Profile fetch error: {e}")
+
+        # 2. Get price/market data via fast_info (much faster than .info)
         try:
             fast_info = ticker_obj.fast_info
-            # Fallback to .info only if fast_info is sparse (it's much slower)
             info = ticker_obj.info if not fast_info else fast_info
         except:
             info = {}
 
-        name = info.get("shortName") or info.get("longName") or ticker
-        description = info.get("longBusinessSummary", "No description available.")
-        country = info.get("country", "")
+        # 3. Resolve Company Name & Description
+        final_name = p_data.get("name") or info.get("shortName") or info.get("longName") or ticker
         
-        # Financial metrics extraction with explicit error handling
+        raw_desc = p_data.get("description") or info.get("longBusinessSummary") or "No description available."
+        # Truncate to first 2 sentences for brevity as requested
+        sentences = [s.strip() for s in raw_desc.split(". ") if s.strip()]
+        final_description = ". ".join(sentences[:2])
+        if final_description and not final_description.endswith("."):
+            final_description += "."
+        
+        final_country = p_data.get("country") or info.get("country") or ""
+        
+        # Financial metrics extraction
         try:
             financials = ticker_obj.get_financials()
             balance_sheet = ticker_obj.get_balance_sheet()
@@ -81,7 +100,7 @@ def get_stock(ticker: str, aiFallback: bool = False):
             cashflow = pd.DataFrame()
 
         if financials.empty or balance_sheet.empty or cashflow.empty:
-            raise HTTPException(status_code=404, detail="Could not retrieve full financial history for this ticker. Ensure the ticker is correct.")
+            raise HTTPException(status_code=404, detail="Could not retrieve full financial history for this ticker.")
 
         # Get TTM/Latest values (first column)
         try:
@@ -121,10 +140,10 @@ def get_stock(ticker: str, aiFallback: bool = False):
         cap_ex = safe_get(cf, ["Capital Expenditure", "Property Plant Equipment", "CapitalExpenditure"])
         fcf = ocf + cap_ex # capex is negative in yfinance usually
 
-        market_cap = info.get("marketCap") or info.get("market_cap", 0)
-        # If market cap is missing from info, try calculating it
+        market_cap = info.get("marketCap") or info.get("market_cap") or p_data.get("market_cap", 0)
+        # If market cap is missing, try calculating it
         if not market_cap:
-            price = info.get("lastPrice") or info.get("regularMarketPrice") or info.get("currentPrice", 0)
+            price = info.get("currentPrice") or info.get("lastPrice") or info.get("regularMarketPrice", 0)
             shares = info.get("sharesOutstanding") or 0
             market_cap = price * shares
 
@@ -134,7 +153,6 @@ def get_stock(ticker: str, aiFallback: bool = False):
         fcf_history = []
         api_breakdown = []
         
-        # Check if we have the necessary indices in the full cashflow dataframe
         ocf_key = next((k for k in ["Operating Cash Flow", "OperatingCashFlow"] if k in cashflow.index), None)
         capex_key = next((k for k in ["Capital Expenditure", "CapitalExpenditure"] if k in cashflow.index), None)
 
@@ -143,10 +161,8 @@ def get_stock(ticker: str, aiFallback: bool = False):
                 try:
                     c_ocf = cashflow.loc[ocf_key, col]
                     c_capex = cashflow.loc[capex_key, col]
-                    
                     hist_fcf = (c_ocf if c_ocf is not None else 0) + (c_capex if c_capex is not None else 0)
                     hist_yield = (hist_fcf / market_cap * 100) if market_cap > 0 else 0
-                    
                     if not np.isnan(hist_yield) and not np.isinf(hist_yield) and hist_yield != 0:
                         fcf_history.append(hist_yield)
                         api_breakdown.append({
@@ -154,15 +170,13 @@ def get_stock(ticker: str, aiFallback: bool = False):
                             "fcfYield": float(hist_yield), 
                             "source": "API"
                         })
-                except Exception:
-                    continue
+                except Exception: continue
 
         # 2. AI Fallback Historical FCF (Years 6-10)
         ai_breakdown = []
         if aiFallback:
             ai_data = research_historical_fcf(ticker)
             for item in ai_data:
-                # Deduplicate years
                 if not any(b['year'] == item['year'] for b in api_breakdown):
                     fcf_history.append(item['fcfYield'])
                     ai_breakdown.append({**item, "source": "AI Research"})
@@ -180,8 +194,6 @@ def get_stock(ticker: str, aiFallback: bool = False):
                 if years > 0:
                     fcf_growth = ((recent_yield / oldest_yield) ** (1/years) - 1) * 100
 
-        # Quality Score Calculation (proprietary simplistic version)
-        # Higher scores for metrics beating benchmarks
         score = 0
         score += 1 if roce > 15 else 0.5 if roce > 10 else 0
         score += 1 if gross_margin > 40 else 0.5 if gross_margin > 30 else 0
@@ -191,9 +203,9 @@ def get_stock(ticker: str, aiFallback: bool = False):
 
         data = {
             "ticker": ticker,
-            "name": name,
-            "country": country,
-            "description": description,
+            "name": final_name,
+            "country": final_country,
+            "description": final_description,
             "price": info.get("currentPrice") or info.get("lastPrice") or 0,
             "changes": info.get("regularMarketChangePercent") or 0,
             "roce": roce,
@@ -206,7 +218,7 @@ def get_stock(ticker: str, aiFallback: bool = False):
             "historicalFcfYield": historical_fcf_yield,
             "historicalBreakdown": sorted(api_breakdown + ai_breakdown, key=lambda x: x['year'], reverse=True),
             "isAiUsed": aiFallback and len(ai_breakdown) > 0,
-            "source": "Yahoo Finance (Normalized)"
+            "source": "OpenBB / Yahoo Finance"
         }
 
         # Final sanitization for JSON compatibility
@@ -216,8 +228,7 @@ def get_stock(ticker: str, aiFallback: bool = False):
 
         return data
 
-    except HTTPException:
-        raise
+    except HTTPException: raise
     except Exception as e:
         import traceback
         traceback.print_exc()
