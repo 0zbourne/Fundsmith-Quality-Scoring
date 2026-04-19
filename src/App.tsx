@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { fetchStockData, StockMetrics, SP500_AVERAGES, fetchSP500Benchmarks } from './services/stockService';
 
-const cleanCompanyName = (name: string) => {
+const cleanCompanyName = (name: any) => {
   if (!name) return "";
+  if (typeof name !== 'string') name = String(name);
   return name
     .replace(/[,.]?\s+(Inc|Incorporated|Group\s+PLC|Group\s+Plc|PLC|Plc|Corp|Corporation|Ltd|Limited|Co|Company|S\.A\.|AG|NV|SE|ADR|Holdings?|Class\s+[A-Z]|Group)\.?$/gi, '')
     .trim();
