@@ -37,22 +37,24 @@ def get_ai_company_summary(ticker: str, name: str):
     if not GOOGLE_API_KEY:
         return ""
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Using Gemini 3 Flash as suggested
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         prompt = f"Provide a single, professional one-sentence description of {name} ({ticker}). Focus only on its core business."
         response = model.generate_content(prompt)
         text = response.text.strip()
-        # Strictly enforce single sentence
-        return text.split(".")[0].strip() + "."
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return (sentences[0] if sentences else text).strip()
     except Exception:
         return ""
 
 def research_historical_fcf(ticker: str):
-    """AI Research for years 6-10."""
+    """AI Research for years 6-10 using Gemini 3 Flash."""
     if not GOOGLE_API_KEY:
         return []
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Provide annual FCF Yield for {ticker} for the years 2015-2020. Format ONLY as JSON array: [{{'year': 2017, 'fcfYield': 3.2}}]"
+        model = genai.GenerativeModel('gemini-3-flash-preview')
+        prompt = f"Find the actual annual Free Cash Flow (FCF) Yield for {ticker} for the years 2015, 2016, 2017, 2018, 2019, 2020. Format ONLY as a JSON list: [{{'year': 2017, 'fcfYield': 3.2}}]. If uncertain, provide your best professional estimate based on historical performance."
         response = model.generate_content(prompt)
         text = response.text.strip()
         if "```json" in text: text = text.split("```json")[1].split("```")[0].strip()
@@ -172,22 +174,23 @@ def get_stock(ticker: str, aiFallback: bool = False):
         api_breakdown = []
         fcf_history = []
         
-        # Look for FCF with or without spaces
-        fcf_key = None
+        # Look for FCF with or without spaces, normalized
+        fcf_series = pd.Series()
         for k in ["Free Cash Flow", "FreeCashFlow"]:
             if k in cashflow.index:
-                fcf_key = k
+                fcf_series = cashflow.loc[k]
+                if isinstance(fcf_series, pd.DataFrame): 
+                    fcf_series = fcf_series.iloc[0] # Take first row if multiple
                 break
         
-        if fcf_key:
-            fcf_series = cashflow.loc[fcf_key]
+        if not fcf_series.empty:
             for date, val in fcf_series.items():
                 if not pd.isna(val) and val != 0:
-                    # Both FCF (val) and market_cap_base are now in Pounds/Base Currency
-                    y_yield = (val / market_cap_base * 100) if market_cap_base > 0 else 0
+                    y_yield = (float(val) / market_cap_base * 100) if market_cap_base > 0 else 0
                     if not np.isinf(y_yield) and not np.isnan(y_yield):
+                        year = int(date.year) if hasattr(date, 'year') else int(str(date)[:4])
                         fcf_history.append(y_yield)
-                        api_breakdown.append({"year": int(date.year), "fcfYield": float(y_yield), "source": "API"})
+                        api_breakdown.append({"year": year, "fcfYield": float(y_yield), "source": "API"})
         
         fcf_ttm_yield = api_breakdown[0]["fcfYield"] if api_breakdown else 0
         
