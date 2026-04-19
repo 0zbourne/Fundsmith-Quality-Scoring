@@ -41,8 +41,8 @@ def get_ai_company_summary(ticker: str, name: str):
         prompt = f"Provide a single, professional one-sentence description of {name} ({ticker}). Focus only on its core business."
         response = model.generate_content(prompt)
         text = response.text.strip()
-        # Ensure single sentence
-        return text.split(". ")[0].split(".")[0].strip() + "."
+        # Strictly enforce single sentence
+        return text.split(".")[0].strip() + "."
     except Exception:
         return ""
 
@@ -93,12 +93,17 @@ def get_stock(ticker: str, aiFallback: bool = False):
                 desc = desc or full_info.get("longBusinessSummary") or ""
             except: pass
 
-        # Enforce ONE sentence and priority
+        # Enforce ONE sentence limit strictly
         final_name = name or ticker
         if not desc or len(desc) < 20:
             final_description = get_ai_company_summary(ticker, final_name)
         else:
-            final_description = desc.split(". ")[0].split(".")[0].strip() + "."
+            import re
+            # Split by sentence-ending punctuation followed by whitespace or end of string
+            sentences = re.split(r'(?<=[.!?])\s+', desc.strip())
+            final_description = sentences[0] if sentences else ""
+            if final_description and not final_description.endswith((".", "!", "?")):
+                final_description += "."
 
         final_country = ensure_str(p_data.get("country") or "")
         
@@ -111,15 +116,27 @@ def get_stock(ticker: str, aiFallback: bool = False):
             if financials.empty or balance_sheet.empty or cashflow.empty:
                 raise Exception("Missing data")
         except Exception:
-            raise HTTPException(status_code=404, detail="Incomplete financial footprint.")
+            raise HTTPException(status_code=404, detail="Incomplete financial history.")
 
         inc = financials.iloc[:, 0]
         bs = balance_sheet.iloc[:, 0]
         
         def safe_get(series, keys):
+            # Normalize index to remove spaces for more robust matching
+            normalized_series = series.copy()
+            normalized_series.index = [str(k).replace(" ", "") for k in series.index]
+            
             for k in keys:
+                # Check both normalized and original versions
+                k_norm = k.replace(" ", "")
+                if k_norm in normalized_series.index:
+                    val = normalized_series.loc[k_norm]
+                    # Handle multiple matches (take latest)
+                    if isinstance(val, pd.Series): val = val.iloc[0]
+                    return val if val is not None and not pd.isna(val) else 0
                 if k in series.index:
                     val = series.loc[k]
+                    if isinstance(val, pd.Series): val = val.iloc[0]
                     return val if val is not None and not pd.isna(val) else 0
             return 0
 
@@ -134,28 +151,40 @@ def get_stock(ticker: str, aiFallback: bool = False):
         gross_margin = (gross_profit / revenue * 100) if revenue > 0 else 0
         op_margin = (ebit / revenue * 100) if revenue > 0 else 0
 
-        # FCF Yield Logic (Fixing UK Market GBp vs GBP)
-        # 1. Get raw Market Cap
-        market_cap = fast_info.get("marketCap") or 0
-        currency = fast_info.get("currency", "USD")
+        # UNIT-SAFE FCF Yield Logic
+        # 1. Normalize Market Cap to Base Currency (GBP/USD)
+        price = fast_info.get("lastPrice") or ticker_obj.info.get("currentPrice", 0)
+        shares = fast_info.get("shares") or ticker_obj.info.get("sharesOutstanding", 0)
         
-        # 2. Extract FCF History using yfinance index or manual calculation
+        # Robust currency detection
+        currency = ensure_str(fast_info.get("currency") or ticker_obj.info.get("currency") or "").strip()
+        if not currency and ticker.endswith(".L"): 
+            currency = "GBp" # High-confidence fallback for London stocks
+            
+        normalized_price = price
+        # If price is in Pence (GBp or GBX), convert to Pounds for MC/FCF consistency
+        if currency.lower() in ["gbp", "gbx"] or (price > 1000 and ticker.endswith(".L")):
+            normalized_price = price / 100.0
+            
+        market_cap_base = normalized_price * shares
+        
+        # 2. Extract FCF History
         api_breakdown = []
         fcf_history = []
         
-        # Use direct yfinance FCF if available (usually more reliable)
-        if "Free Cash Flow" in cashflow.index:
-            fcf_series = cashflow.loc["Free Cash Flow"]
+        # Look for FCF with or without spaces
+        fcf_key = None
+        for k in ["Free Cash Flow", "FreeCashFlow"]:
+            if k in cashflow.index:
+                fcf_key = k
+                break
+        
+        if fcf_key:
+            fcf_series = cashflow.loc[fcf_key]
             for date, val in fcf_series.items():
                 if not pd.isna(val) and val != 0:
-                    # Logic adjustment: If currency is GBp (Pence), financials are usually in GBP (Pounds)
-                    # But Market Cap from fast_info is usually in the same unit as 'currency'.
-                    # For GAW.L, currency='GBp', marketCap is in pence. Financials FCF is in pounds.
-                    adjusted_fcf = val
-                    if currency == "GBp":
-                        adjusted_fcf = val * 100 # Convert pound FCF to pence to match market cap
-                    
-                    y_yield = (adjusted_fcf / market_cap * 100) if market_cap > 0 else 0
+                    # Both FCF (val) and market_cap_base are now in Pounds/Base Currency
+                    y_yield = (val / market_cap_base * 100) if market_cap_base > 0 else 0
                     if not np.isinf(y_yield) and not np.isnan(y_yield):
                         fcf_history.append(y_yield)
                         api_breakdown.append({"year": int(date.year), "fcfYield": float(y_yield), "source": "API"})
@@ -183,13 +212,13 @@ def get_stock(ticker: str, aiFallback: bool = False):
 
         return {
             "ticker": ticker, "name": final_name, "country": final_country, "description": final_description,
-            "price": fast_info.get("lastPrice") or 0, "changes": (fast_info.get("yearChange", 0) or 0) * 100,
+            "price": normalized_price, "changes": (fast_info.get("yearChange", 0) or 0) * 100,
             "roce": roce, "grossMargin": gross_margin, "operatingMargin": op_margin,
             "cashConversion": cash_conv, "interestCover": interest_cover,
             "fcfYield": fcf_ttm_yield, "fcfGrowthRate": 0, "historicalFcfYield": historical_fcf_yield,
             "historicalBreakdown": sorted(api_breakdown + ai_breakdown, key=lambda x: x['year'], reverse=True),
             "isAiUsed": aiFallback and len(ai_breakdown) > 0,
-            "source": f"Yahoo Finance ({currency})"
+            "source": f"Yahoo Finance ({currency.upper()})"
         }
 
     except Exception as e:
