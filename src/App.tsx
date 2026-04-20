@@ -259,7 +259,7 @@ export default function App() {
 
       {/* Header */}
       <header className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between gap-8 relative">
+        <div className="max-w-[1500px] mx-auto px-6 h-16 flex items-center justify-between gap-8 relative">
           <div 
             className="flex items-center gap-2 cursor-pointer group shrink-0"
             onClick={() => {
@@ -335,7 +335,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
+      <main className="max-w-[1500px] mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
           {!data && !loading && !error && (
             <motion.div 
@@ -453,7 +453,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between flex-1 px-4 overflow-x-auto min-w-0 pb-2 md:pb-0 hide-scrollbar gap-8">
+                        <div className="flex items-center justify-between flex-1 px-4 overflow-x-auto min-w-0 pb-2 md:pb-0 hide-scrollbar gap-8 lg:gap-4 md:pl-8">
                           
                           {/* Quality Group */}
                           <div className="flex items-center gap-4 lg:gap-6 shrink-0">
