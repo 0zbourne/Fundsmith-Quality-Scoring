@@ -4,12 +4,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { fetchStockData, StockMetrics, SP500_AVERAGES, fetchSP500Benchmarks } from './services/stockService';
 
-const cleanCompanyName = (name: any) => {
-  if (!name) return "";
-  if (typeof name !== 'string') name = String(name);
+const cleanCompanyName = (name: string) => {
   return name
-    .replace(/[,.]?\s+(Inc|Incorporated|Group\s+PLC|Group\s+Plc|PLC|Plc|Corp|Corporation|Ltd|Limited|Co|Company|S\.A\.|AG|NV|SE|ADR|Holdings?|Class\s+[A-Z]|Group)\.?$/gi, '')
-    .trim();
+    .replace(/(?i)\b(?:Inc\.|Inc|Corp\.|Corp|Corporation|Ltd\.|Ltd|Limited|Co\.|Co|Company|Plc\.|Plc|S\.A\.|S\.A|N\.V\.|N\.V|B\.V\.|B\.V|Llc\.|Llc)\b/g, '')
+    .trim()
+    .replace(/[,]$/, '');
+};
+
+const getCompanyLogo = (website?: string) => {
+  if (!website) return null;
+  try {
+    const url = new URL(website.startsWith('http') ? website : `https://${website}`);
+    const domain = url.hostname.replace('www.', '');
+    return `https://logo.clearbit.com/${domain}`;
+  } catch (e) {
+    return null;
+  }
 };
 
 export default function App() {
@@ -410,8 +420,21 @@ export default function App() {
                         className="group bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.08] transition-all gap-4"
                       >
                         <div className="flex items-center gap-3 w-[160px] lg:w-[200px] shrink-0">
-                          <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500 shrink-0">
-                            {stock.ticker.split('.')[0]}
+                          <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500 shrink-0 overflow-hidden relative">
+                            {getCompanyLogo(stock.website) && (
+                              <img 
+                                src={getCompanyLogo(stock.website)!} 
+                                alt={stock.ticker}
+                                className="w-full h-full object-contain p-2"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement!.classList.add('fallback-icon');
+                                }}
+                              />
+                            )}
+                            <span className={cn("absolute", getCompanyLogo(stock.website) ? "opacity-0 [.fallback-icon_&]:opacity-100" : "")}>
+                              {stock.ticker.split('.')[0]}
+                            </span>
                           </div>
                           <div className="min-w-0">
                             <h3 className="font-bold text-sm truncate">{cleanCompanyName(stock.name)}</h3>
@@ -617,7 +640,17 @@ export default function App() {
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-8">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="bg-emerald-500 text-black font-mono font-bold px-2 py-0.5 rounded text-sm">
+                    {getCompanyLogo(data.website) && (
+                      <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                        <img 
+                          src={getCompanyLogo(data.website)!} 
+                          alt={data.ticker}
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+                    <span className="bg-emerald-500 text-black font-mono font-bold px-2 py-0.5 rounded text-sm shrink-0">
                       {data.ticker}
                     </span>
                     <h2 className="text-4xl font-bold tracking-tight">{cleanCompanyName(data.name)}</h2>

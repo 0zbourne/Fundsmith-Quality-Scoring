@@ -5,6 +5,7 @@ export interface StockMetrics {
   ticker: string;
   name: string;
   country?: string;
+  website?: string;
   roce: number;
   averageRoce?: number;
   grossMargin: number;

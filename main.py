@@ -110,8 +110,11 @@ def get_stock(ticker: str, aiFallback: bool = False):
                 s = sentences[0].strip()
                 if not s.endswith("."): s += "."
                 final_description = s
-
         final_country = ensure_str(p_data.get("country") or "")
+        try:
+            company_website = ensure_str(ticker_obj.info.get("website") or "")
+        except:
+            company_website = ""
         
         # Financial metrics
         try:
@@ -247,7 +250,7 @@ def get_stock(ticker: str, aiFallback: bool = False):
         historical_fcf_yield = sum(fcf_history)/len(fcf_history) if fcf_history else 0
 
         return {
-            "ticker": ticker, "name": final_name, "country": final_country, "description": final_description,
+            "ticker": ticker, "name": final_name, "country": final_country, "description": final_description, "website": company_website,
             "price": normalized_price, "changes": (fast_info.get("yearChange", 0) or 0) * 100,
             "roce": roce, "grossMargin": gross_margin, "operatingMargin": op_margin,
             "cashConversion": cash_conv, "interestCover": interest_cover,
