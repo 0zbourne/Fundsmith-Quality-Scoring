@@ -213,7 +213,10 @@ def get_stock(ticker: str, aiFallback: bool = False):
 
         ai_breakdown = []
         if aiFallback:
-            ai_data = research_historical_fcf(ticker, currency or "USD")
+            base_ai_curr = currency.upper() if currency else "USD"
+            if base_ai_curr in ["GBP", "GBX", "IBX"]: # normalize Pence to Pounds for AI context
+                base_ai_curr = "GBP"
+            ai_data = research_historical_fcf(ticker, base_ai_curr)
             for item in ai_data:
                 if not any(b['year'] == item['year'] for b in api_breakdown):
                     y_yield = float(item.get('fcfYield', 0))
