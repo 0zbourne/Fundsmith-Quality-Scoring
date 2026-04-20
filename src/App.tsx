@@ -16,7 +16,8 @@ const getCompanyLogo = (website?: string) => {
   try {
     const url = new URL(website.startsWith('http') ? website : `https://${website}`);
     const domain = url.hostname.replace('www.', '');
-    return `https://logo.clearbit.com/${domain}`;
+    // Using Google's public high-res Favicon API (no auth required)
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   } catch (e) {
     return null;
   }
