@@ -396,7 +396,14 @@ export default function App() {
 
                 {watchlist.length > 0 ? (
                   <div className="grid grid-cols-1 gap-3">
-                    {watchlist.map((stock) => (
+                    {[...watchlist].sort((a, b) => {
+                      if (b.score !== a.score) {
+                        return b.score - a.score;
+                      }
+                      const aTotalReturn = a.fcfYield + a.fcfGrowthRate;
+                      const bTotalReturn = b.fcfYield + b.fcfGrowthRate;
+                      return bTotalReturn - aTotalReturn;
+                    }).map((stock) => (
                       <motion.div 
                         key={stock.ticker}
                         layout
