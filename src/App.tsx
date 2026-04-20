@@ -458,8 +458,9 @@ export default function App() {
                               {stock.interestCover.toFixed(1)}x
                             </span>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">FCF Yield</span>
+                          <div className="flex flex-col pl-4 border-l border-white/10 relative">
+                            <div className="absolute -top-3 left-4 text-[7px] text-white/20 uppercase tracking-widest">Valuation</div>
+                            <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter">FCF Yield</span>
                             <div className="flex items-center gap-1">
                               <span className={cn("text-xs font-mono font-bold", stock.fcfYield > stock.historicalFcfYield ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.fcfYield.toFixed(1)}%
