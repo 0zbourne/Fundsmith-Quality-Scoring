@@ -453,59 +453,66 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 lg:gap-6 flex-1 px-2 lg:px-4 overflow-x-auto min-w-0 pb-2 md:pb-0 hide-scrollbar">
+                        <div className="flex items-center justify-between flex-1 px-4 overflow-x-auto min-w-0 pb-2 md:pb-0 hide-scrollbar gap-8">
                           
-                          {/* Quality Metrics Group */}
-                          <div className="flex flex-col items-center border-r border-white/10 pr-6 hidden md:flex shrink-0">
-                            <span className="text-[7px] text-white/30 uppercase tracking-widest mb-1.5">Score</span>
-                            <div className="flex gap-1">
-                              {[1, 2, 3, 4, 5].map((i) => (
-                                <div 
-                                  key={i} 
-                                  className={cn(
-                                    "w-1.5 h-4 rounded-full",
-                                    i <= stock.score ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-white/10"
+                          {/* Quality Group */}
+                          <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+                            {/* Score Bar */}
+                            <div className="flex flex-col items-center border-r border-white/10 pr-6 hidden md:flex shrink-0">
+                              <span className="text-[7px] text-white/30 uppercase tracking-widest mb-1.5">Score</span>
+                              <div className="flex gap-1">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                  <div 
+                                    key={i} 
+                                    className={cn(
+                                      "w-1.5 h-4 rounded-full",
+                                      i <= stock.score ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-white/10"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            
+                            {/* Financials */}
+                            <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+                              <div className="flex flex-col shrink-0 w-12 lg:w-16">
+                                <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
+                                <div className="flex items-center gap-1">
+                                  <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
+                                    {stock.roce.toFixed(1)}%
+                                  </span>
+                                  {stock.averageRoce !== undefined && (
+                                    <span className="text-[8px] font-mono text-white/20">({stock.averageRoce.toFixed(1)}%)</span>
                                   )}
-                                />
-                              ))}
+                                </div>
+                              </div>
+                              <div className="flex flex-col shrink-0 w-10 lg:w-14">
+                                <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
+                                <span className={cn("text-xs font-mono font-bold", stock.grossMargin > benchmarks.grossMargin ? "text-emerald-400" : "text-rose-400")}>
+                                  {stock.grossMargin.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="flex flex-col shrink-0 w-10 lg:w-14">
+                                <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Op.</span>
+                                <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > benchmarks.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
+                                  {stock.operatingMargin.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="flex flex-col shrink-0 w-10 lg:w-14">
+                                <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Cash</span>
+                                <span className={cn("text-xs font-mono font-bold", stock.cashConversion > benchmarks.cashConversion ? "text-emerald-400" : "text-rose-400")}>
+                                  {stock.cashConversion.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="flex flex-col shrink-0 w-10 lg:w-14">
+                                <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Int.</span>
+                                <span className={cn("text-xs font-mono font-bold", stock.interestCover > benchmarks.interestCover ? "text-emerald-400" : "text-rose-400")}>
+                                  {stock.interestCover.toFixed(1)}x
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-col shrink-0 w-12 lg:w-16">
-                              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
-                              <div className="flex items-center gap-1">
-                                <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
-                                  {stock.roce.toFixed(1)}%
-                                </span>
-                                {stock.averageRoce !== undefined && (
-                                  <span className="text-[8px] font-mono text-white/20">({stock.averageRoce.toFixed(1)}%)</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-col shrink-0 w-10 lg:w-14">
-                              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
-                              <span className={cn("text-xs font-mono font-bold", stock.grossMargin > benchmarks.grossMargin ? "text-emerald-400" : "text-rose-400")}>
-                                {stock.grossMargin.toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="flex flex-col shrink-0 w-10 lg:w-14">
-                              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Op.</span>
-                              <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > benchmarks.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
-                                {stock.operatingMargin.toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="flex flex-col shrink-0 w-10 lg:w-14">
-                              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Cash</span>
-                              <span className={cn("text-xs font-mono font-bold", stock.cashConversion > benchmarks.cashConversion ? "text-emerald-400" : "text-rose-400")}>
-                                {stock.cashConversion.toFixed(0)}%
-                              </span>
-                            </div>
-                            <div className="flex flex-col shrink-0 w-10 lg:w-14">
-                              <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Int.</span>
-                              <span className={cn("text-xs font-mono font-bold", stock.interestCover > benchmarks.interestCover ? "text-emerald-400" : "text-rose-400")}>
-                                {stock.interestCover.toFixed(1)}x
-                              </span>
-                            </div>
                           {/* Valuation Group */}
                           <div className="flex items-center gap-4 pl-4 lg:pl-6 border-l border-white/10 shrink-0">
                             <div className="flex flex-col w-10 lg:w-12">
