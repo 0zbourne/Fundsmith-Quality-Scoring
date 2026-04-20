@@ -476,13 +476,26 @@ export default function App() {
                               </span>
                             </div>
                           {/* Valuation Group */}
-                          <div className="flex flex-col pl-4 lg:pl-6 border-l border-white/10 shrink-0 w-16 lg:w-24">
-                            <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter">FCF Yield</span>
-                            <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-4 pl-4 lg:pl-6 border-l border-white/10 shrink-0">
+                            <div className="flex flex-col w-10 lg:w-12">
+                              <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter" title="Current Free Cash Flow Yield">Yield</span>
                               <span className={cn("text-xs font-mono font-bold", stock.fcfYield > stock.historicalFcfYield ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.fcfYield.toFixed(1)}%
                               </span>
-                              <span className="text-[8px] font-mono text-white/20">({stock.historicalFcfYield.toFixed(1)}%)</span>
+                            </div>
+                            <div className="flex flex-col w-10 lg:w-12">
+                              <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter" title="10-Year FCF CAGR">Growth</span>
+                              <div className="flex items-center gap-1">
+                                <span className={cn("text-xs font-mono font-bold", stock.fcfGrowthRate > 0 ? "text-emerald-400" : "text-rose-400")}>
+                                  {stock.fcfGrowthRate.toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col w-14 lg:w-16 pl-3 lg:pl-4 border-l border-white/5">
+                              <span className="text-[9px] font-mono text-indigo-400/80 uppercase tracking-tighter" title="Total Prospective Return">Total Return</span>
+                              <span className="text-xs font-mono font-bold text-indigo-400 text-glow">
+                                {(stock.fcfYield + stock.fcfGrowthRate).toFixed(1)}%
+                              </span>
                             </div>
                           </div>
                         </div>
