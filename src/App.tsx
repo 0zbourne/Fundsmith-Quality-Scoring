@@ -402,7 +402,7 @@ export default function App() {
                         layout
                         className="group bg-white/5 border border-white/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between hover:bg-white/[0.08] transition-all gap-4"
                       >
-                        <div className="flex items-center gap-4 min-w-[200px]">
+                        <div className="flex items-center gap-4 w-[240px] shrink-0 xl:w-[280px]">
                           <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center font-mono font-bold text-emerald-500 shrink-0">
                             {stock.ticker.split('.')[0]}
                           </div>
@@ -440,7 +440,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col shrink-0">
+                          <div className="flex flex-col shrink-0 w-16">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
                               <div className="flex items-center gap-1">
                                 <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
@@ -451,32 +451,32 @@ export default function App() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-col shrink-0">
+                            <div className="flex flex-col shrink-0 w-14">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Gross</span>
                               <span className={cn("text-xs font-mono font-bold", stock.grossMargin > benchmarks.grossMargin ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.grossMargin.toFixed(1)}%
                               </span>
                             </div>
-                            <div className="flex flex-col shrink-0">
+                            <div className="flex flex-col shrink-0 w-14">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Op.</span>
                               <span className={cn("text-xs font-mono font-bold", stock.operatingMargin > benchmarks.operatingMargin ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.operatingMargin.toFixed(1)}%
                               </span>
                             </div>
-                            <div className="flex flex-col shrink-0">
+                            <div className="flex flex-col shrink-0 w-14">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Cash</span>
                               <span className={cn("text-xs font-mono font-bold", stock.cashConversion > benchmarks.cashConversion ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.cashConversion.toFixed(0)}%
                               </span>
                             </div>
-                            <div className="flex flex-col shrink-0">
+                            <div className="flex flex-col shrink-0 w-14">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Int.</span>
                               <span className={cn("text-xs font-mono font-bold", stock.interestCover > benchmarks.interestCover ? "text-emerald-400" : "text-rose-400")}>
                                 {stock.interestCover.toFixed(1)}x
                               </span>
                             </div>
                           {/* Valuation Group */}
-                          <div className="flex flex-col pl-6 border-l border-white/10 shrink-0">
+                          <div className="flex flex-col pl-6 border-l border-white/10 shrink-0 w-24">
                             <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter">FCF Yield</span>
                             <div className="flex items-center gap-1">
                               <span className={cn("text-xs font-mono font-bold", stock.fcfYield > stock.historicalFcfYield ? "text-emerald-400" : "text-rose-400")}>
