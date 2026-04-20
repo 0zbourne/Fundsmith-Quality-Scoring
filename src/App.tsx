@@ -802,6 +802,42 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Combined FCF Yield (Total Prospective Return) */}
+                <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/5 border border-indigo-500/20 p-6 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-300 text-[8px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">
+                    Terry Smith Metric
+                  </div>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="space-y-2 max-w-xl">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-indigo-400" />
+                        <h4 className="font-mono text-sm tracking-wider text-white/80 uppercase">Total Prospective Return</h4>
+                      </div>
+                      <p className="text-sm text-white/40 leading-relaxed">
+                        The combined FCF Yield estimates the baseline long-term compounding rate by summing the current cash yield with its historical CAGR. 
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-4 md:text-right shrink-0 bg-black/20 p-4 rounded-xl border border-white/5">
+                      <div className="flex flex-col items-center opacity-50 px-2">
+                        <span className="text-sm border-b border-white/10 pb-1 mb-1 font-mono">{data.fcfYield.toFixed(1)}%</span>
+                        <span className="text-[9px] uppercase font-mono tracking-widest">Yield</span>
+                      </div>
+                      <span className="text-lg font-mono text-white/20">+</span>
+                      <div className="flex flex-col items-center opacity-50 px-2">
+                        <span className="text-sm border-b border-white/10 pb-1 mb-1 font-mono">{data.fcfGrowthRate.toFixed(1)}%</span>
+                        <span className="text-[9px] uppercase font-mono tracking-widest">Growth</span>
+                      </div>
+                      <span className="text-lg font-mono text-white/20">=</span>
+                      <div className="flex flex-col items-center px-2">
+                        <span className="text-3xl font-mono font-bold text-indigo-400 text-glow">
+                          {(data.fcfYield + data.fcfGrowthRate).toFixed(1)}%
+                        </span>
+                        <span className="text-[10px] text-indigo-400/50 uppercase tracking-widest mt-1">Combined</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center shrink-0">
