@@ -422,26 +422,25 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap xl:flex-nowrap items-center gap-x-6 gap-y-4 flex-1 px-4">
+                        <div className="flex items-center gap-6 flex-1 px-4 overflow-x-auto min-w-0 pb-2 md:pb-0 hide-scrollbar">
                           
                           {/* Quality Metrics Group */}
-                          <div className="flex items-center gap-6 overflow-x-auto min-w-0 pb-2 xl:pb-0 hide-scrollbar">
-                            <div className="flex flex-col items-center border-r border-white/10 pr-6 mr-2 hidden md:flex">
-                              <span className="text-[7px] text-white/30 uppercase tracking-widest mb-1.5">Score</span>
-                              <div className="flex gap-1">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                  <div 
-                                    key={i} 
-                                    className={cn(
-                                      "w-1.5 h-4 rounded-full",
-                                      i <= stock.score ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-white/10"
-                                    )}
-                                  />
-                                ))}
-                              </div>
+                          <div className="flex flex-col items-center border-r border-white/10 pr-6 hidden md:flex shrink-0">
+                            <span className="text-[7px] text-white/30 uppercase tracking-widest mb-1.5">Score</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((i) => (
+                                <div 
+                                  key={i} 
+                                  className={cn(
+                                    "w-1.5 h-4 rounded-full",
+                                    i <= stock.score ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-white/10"
+                                  )}
+                                />
+                              ))}
                             </div>
+                          </div>
 
-                            <div className="flex flex-col shrink-0">
+                          <div className="flex flex-col shrink-0">
                               <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">ROCE</span>
                               <div className="flex items-center gap-1">
                                 <span className={cn("text-xs font-mono font-bold", stock.roce > benchmarks.roce ? "text-emerald-400" : "text-rose-400")}>
@@ -476,11 +475,8 @@ export default function App() {
                                 {stock.interestCover.toFixed(1)}x
                               </span>
                             </div>
-                          </div>
-
                           {/* Valuation Group */}
-                          <div className="flex flex-col pl-6 border-l border-white/10 relative shrink-0">
-                            <div className="absolute -top-3 left-6 text-[7px] text-white/20 uppercase tracking-widest">Valuation</div>
+                          <div className="flex flex-col pl-6 border-l border-white/10 shrink-0">
                             <span className="text-[9px] font-mono text-blue-400/70 uppercase tracking-tighter">FCF Yield</span>
                             <div className="flex items-center gap-1">
                               <span className={cn("text-xs font-mono font-bold", stock.fcfYield > stock.historicalFcfYield ? "text-emerald-400" : "text-rose-400")}>
