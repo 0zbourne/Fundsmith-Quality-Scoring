@@ -6,7 +6,7 @@ import { fetchStockData, StockMetrics, SP500_AVERAGES, fetchSP500Benchmarks } fr
 
 const cleanCompanyName = (name: string) => {
   return name
-    .replace(/(?i)\b(?:Inc\.|Inc|Corp\.|Corp|Corporation|Ltd\.|Ltd|Limited|Co\.|Co|Company|Plc\.|Plc|S\.A\.|S\.A|N\.V\.|N\.V|B\.V\.|B\.V|Llc\.|Llc)\b/g, '')
+    .replace(/\b(?:Inc\.|Inc|Corp\.|Corp|Corporation|Ltd\.|Ltd|Limited|Co\.|Co|Company|Plc\.|Plc|S\.A\.|S\.A|N\.V\.|N\.V|B\.V\.|B\.V|Llc\.|Llc)\b/gi, '')
     .trim()
     .replace(/[,]$/, '');
 };
